@@ -12,7 +12,7 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: #f5f7fa;
             color: #333;
         }
@@ -56,8 +56,8 @@
             border-left: 4px solid #0078d4;
         }
         
-        .summary-card.accounts { border-left-color: #107c10; }
         .summary-card.subscriptions { border-left-color: #0078d4; }
+        .summary-card.accounts { border-left-color: #107c10; }
         .summary-card.unknown { border-left-color: #d83b01; }
         .summary-card.multi { border-left-color: #5c2d91; }
         
@@ -80,6 +80,7 @@
             gap: 0.5rem;
             margin-bottom: 1rem;
             border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 0;
         }
         
         .tab {
@@ -157,6 +158,10 @@
             background: #fafafa;
         }
         
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
         .badge {
             display: inline-block;
             padding: 0.25rem 0.6rem;
@@ -168,9 +173,10 @@
         }
         
         .guid {
-            font-family: "Consolas", "Monaco", monospace;
+            font-family: 'Consolas', 'Monaco', monospace;
             font-size: 0.85rem;
             color: #666;
+            word-break: break-all;
         }
         
         .loading {
@@ -317,14 +323,25 @@
         }
         
         @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+            
             .container {
                 padding: 1rem;
             }
+            
             .summary-grid {
                 grid-template-columns: 1fr 1fr;
             }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
             th, td {
                 padding: 0.75rem 0.5rem;
+                font-size: 0.85rem;
             }
         }
     </style>
@@ -377,16 +394,23 @@
         </div>
         
         <div id="detail-view" class="detail-view">
-            <button class="back-btn" onclick="showMainView()">Back to list</button>
+            <button class="back-btn" onclick="showMainView()">
+                &larr; Back to list
+            </button>
+            
             <div class="detail-card">
                 <h3>Account Details</h3>
                 <div id="account-detail"></div>
             </div>
+            
             <div class="detail-card">
                 <h3>Subscriptions (<span id="sub-count">0</span>)</h3>
                 <table>
                     <thead>
-                        <tr><th>Name</th><th>Subscription GUID</th></tr>
+                        <tr>
+                            <th>Name</th>
+                            <th>Subscription GUID</th>
+                        </tr>
                     </thead>
                     <tbody id="subscriptions-detail"></tbody>
                 </table>
@@ -397,29 +421,30 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        const API_BASE = window.location.origin + "/api";
-        let currentTab = "accounts";
+        const API_BASE = window.location.origin + '/api';
+        
+        let currentTab = 'accounts';
         let currentPage = 1;
         let totalPages = 1;
         let currentData = [];
         let searchTimeout = null;
-
-        document.addEventListener("DOMContentLoaded", () => {
+        
+        document.addEventListener('DOMContentLoaded', () => {
             loadSummary();
             loadData();
             
-            document.querySelectorAll(".tab").forEach(tab => {
-                tab.addEventListener("click", () => {
-                    document.querySelector(".tab.active").classList.remove("active");
-                    tab.classList.add("active");
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelector('.tab.active').classList.remove('active');
+                    tab.classList.add('active');
                     currentTab = tab.dataset.tab;
                     currentPage = 1;
-                    document.getElementById("search-input").value = "";
+                    document.getElementById('search-input').value = '';
                     loadData();
                 });
             });
             
-            document.getElementById("search-input").addEventListener("input", (e) => {
+            document.getElementById('search-input').addEventListener('input', () => {
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(() => {
                     currentPage = 1;
@@ -427,101 +452,149 @@
                 }, 300);
             });
         });
-
+        
         async function loadSummary() {
             try {
-                const response = await fetch(API_BASE + "/summary");
+                const response = await fetch(API_BASE + '/summary');
                 const data = await response.json();
-                document.getElementById("total-accounts").textContent = data.total_accounts.toLocaleString();
-                document.getElementById("total-subscriptions").textContent = data.total_subscriptions.toLocaleString();
-                document.getElementById("total-unknown").textContent = data.total_unknown.toLocaleString();
-                document.getElementById("total-multi").textContent = data.accounts_with_multiple_subscriptions.toLocaleString();
+                
+                if (data.error) {
+                    showToast('Error: ' + data.error, true);
+                    return;
+                }
+                
+                document.getElementById('total-accounts').textContent = (data.total_accounts || 0).toLocaleString();
+                document.getElementById('total-subscriptions').textContent = (data.total_subscriptions || 0).toLocaleString();
+                document.getElementById('total-unknown').textContent = (data.total_unknown || 0).toLocaleString();
+                document.getElementById('total-multi').textContent = (data.accounts_with_multiple_subscriptions || 0).toLocaleString();
             } catch (error) {
-                showToast("Failed to load summary: " + error.message, true);
+                showToast('Failed to load summary: ' + error.message, true);
             }
         }
-
+        
         async function loadData() {
-            const tableContent = document.getElementById("table-content");
-            tableContent.innerHTML = "<div class="loading"><div class="spinner"></div><p>Loading data...</p></div>";
+            const tableContent = document.getElementById('table-content');
+            tableContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading data...</p></div>';
             
             try {
-                let endpoint = "";
-                const searchParam = document.getElementById("search-input").value;
+                let endpoint = API_BASE;
+                const searchParam = document.getElementById('search-input').value;
                 
-                if (currentTab === "accounts") endpoint = API_BASE + "/accounts";
-                else if (currentTab === "subscriptions") endpoint = API_BASE + "/subscriptions";
-                else if (currentTab === "unknown") endpoint = API_BASE + "/unknown";
+                switch (currentTab) {
+                    case 'accounts':
+                        endpoint += '/accounts';
+                        break;
+                    case 'subscriptions':
+                        endpoint += '/subscriptions';
+                        break;
+                    case 'unknown':
+                        endpoint += '/unknown';
+                        break;
+                }
                 
                 const params = new URLSearchParams();
-                if (searchParam) params.set("search", searchParam);
-                params.set("page", currentPage);
-                params.set("page_size", 50);
+                if (searchParam) params.set('search', searchParam);
+                params.set('page', currentPage);
+                params.set('page_size', 50);
                 
-                const url = endpoint + "?" + params.toString();
+                const url = endpoint + '?' + params.toString();
                 const response = await fetch(url);
-                
-                if (!response.ok) throw new Error("Failed to fetch data");
-                
                 const result = await response.json();
-                currentData = result.data;
-                totalPages = result.pagination.total_pages;
+                
+                if (result.error) {
+                    tableContent.innerHTML = '<div class="loading"><p>Error: ' + result.error + '</p></div>';
+                    showToast('Error: ' + result.error, true);
+                    return;
+                }
+                
+                if (currentTab === 'unknown') {
+                    currentData = result.data || [];
+                    totalPages = 1;
+                } else {
+                    currentData = result.data || [];
+                    totalPages = result.pagination?.total_pages || 1;
+                }
                 
                 renderTable();
             } catch (error) {
-                tableContent.innerHTML = "<div class="loading"><p>Error loading data: " + error.message + "</p></div>";
-                showToast("Failed to load data: " + error.message, true);
+                tableContent.innerHTML = '<div class="loading"><p>Error loading data: ' + error.message + '</p></div>';
+                showToast('Failed to load data: ' + error.message, true);
             }
         }
-
+        
         function renderTable() {
-            const tableContent = document.getElementById("table-content");
+            const tableContent = document.getElementById('table-content');
             
             if (currentData.length === 0) {
-                tableContent.innerHTML = "<div class="loading"><p>No data found</p></div>";
+                tableContent.innerHTML = '<div class="loading"><p>No data found</p></div>';
                 return;
             }
             
-            let html = "<table><thead><tr>";
+            let html = '<table><thead><tr>';
             
-            if (currentTab === "accounts") {
-                html += "<th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th></th>";
-            } else if (currentTab === "subscriptions") {
-                html += "<th>Subscription Name</th><th>Account</th><th>Company ID</th><th>Subscription GUID</th>";
-            } else if (currentTab === "unknown") {
-                html += "<th>Subscription Name</th><th>Subscription GUID</th>";
+            switch (currentTab) {
+                case 'accounts':
+                    html += '<th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th></th>';
+                    break;
+                case 'subscriptions':
+                    html += '<th>Subscription Name</th><th>Account</th><th>Company ID</th><th>Subscription GUID</th>';
+                    break;
+                case 'unknown':
+                    html += '<th>Subscription Name</th><th>Subscription GUID</th>';
+                    break;
             }
             
-            html += "</tr></thead><tbody>";
+            html += '</tr></thead><tbody>';
             
             currentData.forEach(item => {
-                if (currentTab === "accounts") {
-                    html += "<tr><td><strong>" + (item.account_name || "") + "</strong></td>";
-                    html += "<td>" + (item.company_id || "") + "</td>";
-                    html += "<td><span class="badge">" + (item.subscription_count || 0) + "</span></td>";
-                    html += "<td><button class="btn" onclick="viewAccount(" + item.account_id + ")">View</button></td></tr>";
-                } else if (currentTab === "subscriptions") {
-                    html += "<tr><td><strong>" + (item.subscription_name || "") + "</strong></td>";
-                    html += "<td>" + (item.account_name || "") + "</td>";
-                    html += "<td>" + (item.company_id || "") + "</td>";
-                    html += "<td><span class="guid">" + (item.subscription_guid || "-") + "</span></td></tr>";
-                } else if (currentTab === "unknown") {
-                    html += "<tr><td><strong>" + (item.subscription_name || "") + "</strong></td>";
-                    html += "<td><span class="guid">" + (item.subscription_guid || "-") + "</span></td></tr>";
+                switch (currentTab) {
+                    case 'accounts':
+                        html += '<tr>' +
+                            '<td><strong>' + escapeHtml(item.account_name || '') + '</strong></td>' +
+                            '<td>' + escapeHtml(item.company_id || '') + '</td>' +
+                            '<td><span class="badge">' + (item.subscription_count || 0) + '</span></td>' +
+                            '<td><button class="btn" onclick="viewAccount(' + (item.account_id || 0) + ')">View</button></td>' +
+                        '</tr>';
+                        break;
+                    case 'subscriptions':
+                        html += '<tr>' +
+                            '<td><strong>' + escapeHtml(item.subscription_name || '') + '</strong></td>' +
+                            '<td>' + escapeHtml(item.account_name || '') + '</td>' +
+                            '<td>' + escapeHtml(item.company_id || '') + '</td>' +
+                            '<td><span class="guid">' + escapeHtml(item.subscription_guid || '-') + '</span></td>' +
+                        '</tr>';
+                        break;
+                    case 'unknown':
+                        html += '<tr>' +
+                            '<td><strong>' + escapeHtml(item.subscription_name || '') + '</strong></td>' +
+                            '<td><span class="guid">' + escapeHtml(item.subscription_guid || '-') + '</span></td>' +
+                        '</tr>';
+                        break;
                 }
             });
             
-            html += "</tbody></table>";
+            html += '</tbody></table>';
             
-            html += "<div class="pagination"><div class="pagination-info">Page " + currentPage + " of " + totalPages + "</div>";
-            html += "<div class="pagination-buttons">";
-            html += "<button class="btn" onclick="changePage(-1)"" + (currentPage === 1 ? " disabled" : "") + ">Previous</button>";
-            html += "<button class="btn" onclick="changePage(1)"" + (currentPage === totalPages ? " disabled" : "") + ">Next</button>";
-            html += "</div></div>";
+            if (currentTab !== 'unknown' && totalPages > 1) {
+                html += '<div class="pagination">' +
+                    '<div class="pagination-info">Page ' + currentPage + ' of ' + totalPages + '</div>' +
+                    '<div class="pagination-buttons">' +
+                        '<button class="btn" onclick="changePage(-1)" ' + (currentPage === 1 ? 'disabled' : '') + '>Previous</button>' +
+                        '<button class="btn" onclick="changePage(1)" ' + (currentPage === totalPages ? 'disabled' : '') + '>Next</button>' +
+                    '</div>' +
+                '</div>';
+            }
             
             tableContent.innerHTML = html;
         }
-
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         function changePage(direction) {
             const newPage = currentPage + direction;
             if (newPage >= 1 && newPage <= totalPages) {
@@ -529,49 +602,63 @@
                 loadData();
             }
         }
-
+        
         async function viewAccount(accountId) {
             try {
-                const response = await fetch(API_BASE + "/accounts/" + accountId);
+                const response = await fetch(API_BASE + '/accounts/' + accountId);
                 const data = await response.json();
                 
-                document.getElementById("main-view").classList.remove("active");
-                document.getElementById("detail-view").classList.add("active");
+                if (data.error) {
+                    showToast('Error: ' + data.error, true);
+                    return;
+                }
                 
-                const account = data.account;
-                document.getElementById("account-detail").innerHTML = 
-                    "<div class="detail-row"><div class="detail-label">Account Name</div><div class="detail-value">" + (account.account_name || "") + "</div></div>" +
-                    "<div class="detail-row"><div class="detail-label">Company ID</div><div class="detail-value">" + (account.company_id || "") + "</div></div>";
+                document.getElementById('main-view').style.display = 'none';
+                document.getElementById('detail-view').classList.add('active');
                 
-                const subs = data.subscriptions;
-                document.getElementById("sub-count").textContent = subs.length;
+                const account = data.account || {};
+                document.getElementById('account-detail').innerHTML = 
+                    '<div class="detail-row">' +
+                        '<div class="detail-label">Account Name</div>' +
+                        '<div class="detail-value">' + escapeHtml(account.account_name || '') + '</div>' +
+                    '</div>' +
+                    '<div class="detail-row">' +
+                        '<div class="detail-label">Company ID</div>' +
+                        '<div class="detail-value">' + escapeHtml(account.company_id || '') + '</div>' +
+                    '</div>';
+                
+                const subs = data.subscriptions || [];
+                document.getElementById('sub-count').textContent = subs.length;
                 
                 if (subs.length === 0) {
-                    document.getElementById("subscriptions-detail").innerHTML = "<tr><td colspan="2">No subscriptions found</td></tr>";
+                    document.getElementById('subscriptions-detail').innerHTML = '<tr><td colspan="2">No subscriptions found</td></tr>';
                 } else {
-                    let subsHtml = "";
-                    subs.forEach(sub => {
-                        subsHtml += "<tr><td><strong>" + (sub.subscription_name || "") + "</strong></td>";
-                        subsHtml += "<td><span class="guid">" + (sub.subscription_guid || "-") + "</span></td></tr>";
-                    });
-                    document.getElementById("subscriptions-detail").innerHTML = subsHtml;
+                    document.getElementById('subscriptions-detail').innerHTML = subs.map(sub => 
+                        '<tr>' +
+                            '<td><strong>' + escapeHtml(sub.subscription_name || '') + '</strong></td>' +
+                            '<td><span class="guid">' + escapeHtml(sub.subscription_guid || '-') + '</span></td>' +
+                        '</tr>'
+                    ).join('');
                 }
             } catch (error) {
-                showToast("Failed to load account details: " + error.message, true);
+                showToast('Failed to load account details: ' + error.message, true);
             }
         }
-
+        
         function showMainView() {
-            document.getElementById("detail-view").classList.remove("active");
-            document.getElementById("main-view").classList.add("active");
+            document.getElementById('detail-view').classList.remove('active');
+            document.getElementById('main-view').style.display = 'block';
         }
-
-        function showToast(message, isError) {
-            const toast = document.getElementById("toast");
+        
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.className = "toast" + (isError ? " error" : "");
-            toast.classList.add("show");
-            setTimeout(() => toast.classList.remove("show"), 3000);
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
         }
     </script>
 </body>
