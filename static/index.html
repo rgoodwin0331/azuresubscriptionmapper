@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account-Subscription Mapping</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%);
+      color: #fff;
+      padding: 1.25rem 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .header h1 { font-size: 1.4rem; font-weight: 600; }
+    .header p  { font-size: .875rem; opacity: .85; margin-top: .2rem; }
+
+    /* ── Layout ── */
+    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+
+    /* ── Summary Cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.1rem 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      border-left: 4px solid #0078d4;
+    }
+    .card.green  { border-left-color: #107c10; }
+    .card.blue   { border-left-color: #0078d4; }
+    .card.orange { border-left-color: #d83b01; }
+    .card.purple { border-left-color: #5c2d91; }
+    .card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .5px; color: #6b7280; }
+    .card .value { font-size: 1.9rem; font-weight: 700; margin-top: .35rem; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #e5e7eb;
+      margin-bottom: 1rem;
+      gap: .25rem;
+    }
+    .tab {
+      padding: .65rem 1.25rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      font-size: .9rem;
+      color: #6b7280;
+      transition: color .15s, border-color .15s;
+    }
+    .tab:hover { color: #0078d4; }
+    .tab.active { color: #0078d4; border-bottom-color: #0078d4; font-weight: 600; }
+
+    /* ── Search ── */
+    .toolbar { display: flex; gap: .75rem; margin-bottom: 1rem; }
+    .search {
+      flex: 1;
+      padding: .65rem 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: .9rem;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .search:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0,120,212,.15);
+    }
+
+    /* ── Table wrapper ── */
+    .table-wrap {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left;
+      padding: .85rem 1rem;
+      background: #f9fafb;
+      font-size: .78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    tbody td {
+      padding: .9rem 1rem;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: .9rem;
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f9fafb; }
+
+    /* ── Badges / mono ── */
+    .badge {
+      display: inline-block;
+      padding: .2rem .55rem;
+      border-radius: 4px;
+      font-size: .78rem;
+      font-weight: 600;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .badge.orange { background: #ffedd5; color: #c2410c; }
+    .guid {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: .8rem;
+      color: #6b7280;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: .45rem .9rem;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      background: #fff;
+      font-size: .85rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn:hover:not(:disabled) { background: #f3f4f6; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: #0078d4; color: #fff; border-color: #0078d4; }
+    .btn-primary:hover:not(:disabled) { background: #106ebe; }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: .85rem 1rem;
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+    }
+    .pagination-info { font-size: .85rem; color: #6b7280; }
+    .pagination-btns { display: flex; gap: .5rem; }
+
+    /* ── Loading / Empty ── */
+    .state-msg {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #9ca3af;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #0078d4;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto .75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Detail Panel ── */
+    .detail-panel { display: none; }
+    .detail-panel.open { display: block; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: none;
+      border: none;
+      color: #0078d4;
+      cursor: pointer;
+      font-size: .9rem;
+      margin-bottom: 1rem;
+      padding: 0;
+    }
+    .back-btn:hover { text-decoration: underline; }
+    .detail-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .detail-card h3 { font-size: 1rem; margin-bottom: .9rem; color: #374151; }
+    .dl { display: grid; grid-template-columns: 160px 1fr; row-gap: .6rem; }
+    .dl dt { font-size: .85rem; font-weight: 600; color: #6b7280; }
+    .dl dd { font-size: .9rem; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem; right: 1.5rem;
+      background: #1f2937;
+      color: #fff;
+      padding: .85rem 1.25rem;
+      border-radius: 6px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.2);
+      font-size: .9rem;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.err  { background: #b91c1c; }
+
+    @media (max-width: 700px) {
+      .cards { grid-template-columns: 1fr 1fr; }
+      .header { padding: 1rem; }
+      .container { padding: 1rem; }
+      table { font-size: .8rem; }
+      thead th, tbody td { padding: .65rem .6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <h1>Account &ndash; Subscription Mapping</h1>
+  <p>View and search Azure subscription mappings</p>
+</header>
+
+<div class="container">
+
+  <!-- Summary cards -->
+  <div class="cards">
+    <div class="card green">
+      <div class="label">Total Accounts</div>
+      <div class="value" id="c-accounts">&#8212;</div>
+    </div>
+    <div class="card blue">
+      <div class="label">Mapped Subscriptions</div>
+      <div class="value" id="c-subs">&#8212;</div>
+    </div>
+    <div class="card orange">
+      <div class="label">Unknown Subscriptions</div>
+      <div class="value" id="c-unknown">&#8212;</div>
+    </div>
+    <div class="card purple">
+      <div class="label">Accounts with 2+ Subs</div>
+      <div class="value" id="c-multi">&#8212;</div>
+    </div>
+  </div>
+
+  <!-- Main list view -->
+  <div id="main-view">
+    <div class="tabs">
+      <button class="tab active" data-tab="accounts">Accounts</button>
+      <button class="tab" data-tab="subscriptions">Subscriptions</button>
+      <button class="tab" data-tab="unknown">Unknown</button>
+    </div>
+
+    <div class="toolbar">
+      <input id="search" class="search" type="text" placeholder="Search&hellip;" />
+    </div>
+
+    <div class="table-wrap">
+      <div id="table-body">
+        <div class="state-msg"><div class="spinner"></div><p>Loading&hellip;</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail view -->
+  <div id="detail-panel" class="detail-panel">
+    <button class="back-btn" onclick="closeDetail()">&#8592; Back to list</button>
+
+    <div class="detail-card">
+      <h3>Account Details</h3>
+      <dl class="dl" id="detail-account"></dl>
+    </div>
+
+    <div class="detail-card">
+      <h3>Subscriptions (<span id="detail-sub-count">0</span>)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Subscription Name</th>
+              <th>Subscription GUID</th>
+            </tr>
+          </thead>
+          <tbody id="detail-subs"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────
+  // Azure Static Web Apps automatically proxies /api to the linked Function App.
+  // No change needed here unless you are running the frontend standalone.
+  const API = '/api';
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let tab       = 'accounts';
+  let page      = 1;
+  let totalPgs  = 1;
+  let searchVal = '';
+  let searchTmr = null;
+
+  // ── Boot ─────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    loadSummary();
+    loadTable();
+
+    document.querySelectorAll('.tab').forEach(t => {
+      t.addEventListener('click', () => {
+        document.querySelector('.tab.active').classList.remove('active');
+        t.classList.add('active');
+        tab = t.dataset.tab;
+        page = 1;
+        document.getElementById('search').value = '';
+        searchVal = '';
+        loadTable();
+      });
+    });
+
+    document.getElementById('search').addEventListener('input', e => {
+      clearTimeout(searchTmr);
+      searchTmr = setTimeout(() => {
+        searchVal = e.target.value.trim();
+        page = 1;
+        loadTable();
+      }, 300);
+    });
+  });
+
+  // ── Summary ───────────────────────────────────────────────────────────────
+  async function loadSummary() {
+    try {
+      const d = await apiFetch('/summary');
+      document.getElementById('c-accounts').textContent = fmt(d.total_accounts);
+      document.getElementById('c-subs').textContent     = fmt(d.total_subscriptions);
+      document.getElementById('c-unknown').textContent  = fmt(d.total_unknown);
+      document.getElementById('c-multi').textContent    = fmt(d.accounts_with_multiple_subscriptions);
+    } catch (e) { toast('Could not load summary: ' + e.message, true); }
+  }
+
+  // ── Table ─────────────────────────────────────────────────────────────────
+  async function loadTable() {
+    setTableHtml('<div class="state-msg"><div class="spinner"></div><p>Loading&hellip;</p></div>');
+    try {
+      let endpoint = '';
+      const p = new URLSearchParams({ page, page_size: 50 });
+      if (searchVal) p.set('search', searchVal);
+
+      if (tab === 'accounts')       endpoint = '/accounts';
+      else if (tab === 'subscriptions') endpoint = '/subscriptions';
+      else                          endpoint = '/unknown';
+
+      const result = await apiFetch(endpoint + '?' + p.toString());
+      const rows   = result.data;
+      totalPgs     = result.pagination ? result.pagination.total_pages : 1;
+
+      if (!rows || rows.length === 0) {
+        setTableHtml('<div class="state-msg"><p>No results found.</p></div>');
+        return;
+      }
+
+      let thead = '';
+      let tbody = '';
+
+      if (tab === 'accounts') {
+        thead = '<tr><th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th></th></tr>';
+        tbody = rows.map(r => `
+          <tr>
+            <td><strong>${esc(r.account_name)}</strong></td>
+            <td>${esc(r.company_id)}</td>
+            <td><span class="badge">${r.subscription_count}</span></td>
+            <td><button class="btn" onclick="openDetail(${r.account_id})">View</button></td>
+          </tr>`).join('');
+      } else if (tab === 'subscriptions') {
+        thead = '<tr><th>Subscription Name</th><th>Account</th><th>Company ID</th><th>Subscription GUID</th></tr>';
+        tbody = rows.map(r => `
+          <tr>
+            <td><strong>${esc(r.subscription_name)}</strong></td>
+            <td>${esc(r.account_name)}</td>
+            <td>${esc(r.company_id)}</td>
+            <td><span class="guid">${esc(r.subscription_guid || '—')}</span></td>
+          </tr>`).join('');
+      } else {
+        thead = '<tr><th>Subscription Name</th><th>Subscription GUID</th></tr>';
+        tbody = rows.map(r => `
+          <tr>
+            <td><strong>${esc(r.subscription_name)}</strong></td>
+            <td><span class="guid">${esc(r.subscription_guid || '—')}</span></td>
+          </tr>`).join('');
+      }
+
+      const paginationHtml = `
+        <div class="pagination">
+          <span class="pagination-info">Page ${page} of ${totalPgs} &nbsp;(${fmt(result.pagination.total)} rows)</span>
+          <div class="pagination-btns">
+            <button class="btn" onclick="changePage(-1)" ${page <= 1 ? 'disabled' : ''}>&#8592; Prev</button>
+            <button class="btn" onclick="changePage(1)"  ${page >= totalPgs ? 'disabled' : ''}>Next &#8594;</button>
+          </div>
+        </div>`;
+
+      setTableHtml(`<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>${paginationHtml}`);
+    } catch (e) {
+      setTableHtml('<div class="state-msg"><p>Error loading data: ' + esc(e.message) + '</p></div>');
+      toast('Failed to load data: ' + e.message, true);
+    }
+  }
+
+  function changePage(dir) {
+    const np = page + dir;
+    if (np >= 1 && np <= totalPgs) { page = np; loadTable(); }
+  }
+
+  // ── Detail ────────────────────────────────────────────────────────────────
+  async function openDetail(accountId) {
+    try {
+      const d = await apiFetch('/accounts/' + accountId);
+      const a = d.account;
+
+      document.getElementById('detail-account').innerHTML = `
+        <dt>Account Name</dt><dd>${esc(a.account_name)}</dd>
+        <dt>Company ID</dt>  <dd>${esc(a.company_id)}</dd>
+      `;
+
+      const subs = d.subscriptions;
+      document.getElementById('detail-sub-count').textContent = subs.length;
+      document.getElementById('detail-subs').innerHTML = subs.length
+        ? subs.map(s => `
+            <tr>
+              <td><strong>${esc(s.subscription_name)}</strong></td>
+              <td><span class="guid">${esc(s.subscription_guid || '—')}</span></td>
+            </tr>`).join('')
+        : '<tr><td colspan="2" style="color:#9ca3af;text-align:center;padding:1rem">No subscriptions</td></tr>';
+
+      document.getElementById('main-view').style.display   = 'none';
+      document.getElementById('detail-panel').classList.add('open');
+    } catch (e) { toast('Could not load account: ' + e.message, true); }
+  }
+
+  function closeDetail() {
+    document.getElementById('detail-panel').classList.remove('open');
+    document.getElementById('main-view').style.display = '';
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  async function apiFetch(path) {
+    const r = await fetch(API + path);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  function setTableHtml(html) {
+    document.getElementById('table-body').innerHTML = html;
+  }
+
+  function esc(str) {
+    return String(str ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmt(n) {
+    return Number(n).toLocaleString();
+  }
+
+  function toast(msg, isErr = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className   = 'toast' + (isErr ? ' err' : '');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+</script>
+</body>
+</html>
