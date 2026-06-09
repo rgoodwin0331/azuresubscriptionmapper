@@ -1,452 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azure Subscription Mapping</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #f3f4f6;
-      color: #1f2937;
-    }
-
-    /* ── Header ── */
-    .header {
-      background: linear-gradient(135deg, #0078d4, #106ebe);
-      color: #fff;
-      padding: 1.25rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      box-shadow: 0 2px 6px rgba(0,0,0,.15);
-    }
-    .header h1 { font-size: 1.3rem; font-weight: 600; }
-    .header p  { font-size: .85rem; opacity: .85; margin-top: .2rem; }
-
-    /* ── Layout ── */
-    .container { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
-
-    /* ── Summary cards ── */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-bottom: 1.75rem;
-    }
-    .card {
-      background: #fff;
-      border-radius: 8px;
-      padding: 1.1rem 1.25rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,.08);
-      border-left: 4px solid #0078d4;
-    }
-    .card.green  { border-left-color: #107c10; }
-    .card.blue   { border-left-color: #0078d4; }
-    .card.red    { border-left-color: #d83b01; }
-    .card.purple { border-left-color: #5c2d91; }
-    .card .lbl   { font-size: .78rem; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; }
-    .card .val   { font-size: 1.9rem; font-weight: 700; margin-top: .3rem; }
-
-    /* ── Tabs ── */
-    .tabs { display: flex; gap: .25rem; border-bottom: 2px solid #e5e7eb; margin-bottom: 1rem; }
-    .tab  {
-      padding: .65rem 1.4rem; border: none; background: none;
-      cursor: pointer; font-size: .93rem; color: #6b7280;
-      border-bottom: 2px solid transparent; margin-bottom: -2px;
-      transition: color .15s, border-color .15s;
-    }
-    .tab:hover        { color: #0078d4; }
-    .tab.active       { color: #0078d4; border-bottom-color: #0078d4; font-weight: 600; }
-
-    /* ── Toolbar ── */
-    .toolbar { display: flex; gap: .75rem; margin-bottom: .9rem; align-items: center; }
-    .search  {
-      flex: 1; padding: .6rem .9rem; border: 1px solid #d1d5db;
-      border-radius: 6px; font-size: .93rem;
-    }
-    .search:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,.12); }
-
-    /* ── Table ── */
-    .tbl-wrap { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      padding: .75rem 1rem; text-align: left;
-      background: #f9fafb; font-size: .78rem; font-weight: 600;
-      color: #6b7280; text-transform: uppercase; letter-spacing: .4px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    tbody td { padding: .85rem 1rem; font-size: .92rem; border-bottom: 1px solid #f3f4f6; }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover { background: #f9fafb; }
-
-    /* ── Badges ── */
-    .badge {
-      display: inline-block; padding: .2rem .55rem;
-      border-radius: 999px; font-size: .78rem; font-weight: 600;
-    }
-    .badge-blue   { background: #dbeafe; color: #1d4ed8; }
-    .badge-red    { background: #fee2e2; color: #b91c1c; }
-
-    /* ── Mono GUID ── */
-    .guid { font-family: 'Consolas', monospace; font-size: .82rem; color: #6b7280; }
-
-    /* ── View button ── */
-    .btn-view {
-      padding: .3rem .75rem; border: 1px solid #d1d5db; background: #fff;
-      border-radius: 5px; cursor: pointer; font-size: .85rem; color: #374151;
-      transition: background .15s;
-    }
-    .btn-view:hover { background: #f3f4f6; }
-
-    /* ── Pagination ── */
-    .pager {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: .85rem 1rem; background: #f9fafb; border-top: 1px solid #e5e7eb;
-      font-size: .88rem; color: #6b7280;
-    }
-    .pager-btns { display: flex; gap: .5rem; }
-    .btn-page {
-      padding: .35rem .85rem; border: 1px solid #d1d5db; background: #fff;
-      border-radius: 5px; cursor: pointer; font-size: .88rem;
-      transition: background .15s;
-    }
-    .btn-page:hover:not(:disabled) { background: #f3f4f6; }
-    .btn-page:disabled { opacity: .4; cursor: default; }
-
-    /* ── Detail panel ── */
-    #detail-panel { display: none; }
-    .back-link {
-      display: inline-flex; align-items: center; gap: .4rem;
-      color: #0078d4; background: none; border: none; cursor: pointer;
-      font-size: .93rem; margin-bottom: 1rem; padding: 0;
-    }
-    .back-link:hover { text-decoration: underline; }
-    .detail-card {
-      background: #fff; border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.08);
-      padding: 1.25rem 1.5rem; margin-bottom: 1rem;
-    }
-    .detail-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: .9rem; color: #374151; }
-    .detail-row { display: flex; padding: .55rem 0; border-bottom: 1px solid #f3f4f6; }
-    .detail-row:last-child { border-bottom: none; }
-    .detail-lbl { width: 160px; font-size: .88rem; color: #6b7280; }
-    .detail-val { flex: 1; font-size: .92rem; }
-
-    /* ── Empty / loading ── */
-    .empty { text-align: center; padding: 3rem 1rem; color: #9ca3af; }
-    .spinner {
-      width: 36px; height: 36px; border: 3px solid #e5e7eb;
-      border-top-color: #0078d4; border-radius: 50%;
-      animation: spin .8s linear infinite; margin: 0 auto .75rem;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Toast ── */
-    #toast {
-      position: fixed; bottom: 1.5rem; right: 1.5rem;
-      padding: .8rem 1.2rem; border-radius: 6px;
-      background: #1f2937; color: #fff; font-size: .9rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,.2);
-      opacity: 0; transform: translateY(12px);
-      transition: opacity .3s, transform .3s; pointer-events: none; z-index: 999;
-    }
-    #toast.show { opacity: 1; transform: translateY(0); }
-    #toast.err  { background: #b91c1c; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account-Subscription Mapping</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .header { background: linear-gradient(135deg, #0078d4, #106ebe); color: white; padding: 1.5rem 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 1.5rem; font-weight: 600; }
+        .header p { opacity: 0.9; margin-top: 0.25rem; font-size: 0.9rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .summary-card { background: white; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #0078d4; }
+        .summary-card.accounts { border-left-color: #107c10; }
+        .summary-card.subscriptions { border-left-color: #0078d4; }
+        .summary-card.unknown { border-left-color: #d83b01; }
+        .summary-card.multi { border-left-color: #5c2d91; }
+        .summary-card .label { font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .summary-card .value { font-size: 2rem; font-weight: 700; margin-top: 0.5rem; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0; }
+        .tab { padding: 0.75rem 1.5rem; background: none; border: none; cursor: pointer; font-size: 0.95rem; color: #666; border-bottom: 2px solid transparent; }
+        .tab:hover { color: #0078d4; }
+        .tab.active { color: #0078d4; border-bottom-color: #0078d4; font-weight: 500; }
+        .search-bar { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .search-input { flex: 1; padding: 0.75rem 1rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; }
+        .search-input:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,0.1); }
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 1rem; background: #fafafa; font-weight: 600; font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e0e0e0; }
+        td { padding: 1rem; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
+        tr:hover { background: #fafafa; }
+        .badge { display: inline-block; padding: 0.25rem 0.6rem; background: #e3f2fd; color: #1565c0; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
+        .badge.unknown { background: #fff3e0; color: #e65100; }
+        .guid { font-family: 'Consolas', monospace; font-size: 0.85rem; color: #666; }
+        .loading { text-align: center; padding: 3rem; color: #666; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #f0f0f0; border-top-color: #0078d4; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fafafa; border-top: 1px solid #e0e0e0; }
+        .pagination-info { color: #666; font-size: 0.9rem; }
+        .pagination-buttons { display: flex; gap: 0.5rem; }
+        .btn { padding: 0.5rem 1rem; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+        .btn:hover:not(:disabled) { background: #f5f5f5; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .detail-view { display: none; }
+        .detail-view.active { display: block; }
+        .back-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: none; border: none; color: #0078d4; cursor: pointer; font-size: 0.95rem; margin-bottom: 1rem; }
+        .back-btn:hover { text-decoration: underline; }
+        .detail-card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.5rem; margin-bottom: 1rem; }
+        .detail-card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+        .detail-row { display: flex; padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { width: 180px; font-weight: 500; color: #666; }
+        .detail-value { flex: 1; }
+        .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 1.5rem; background: #323130; color: white; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 1000; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.error { background: #d83b01; }
+        @media (max-width: 768px) { .header { padding: 1rem; } .container { padding: 1rem; } .summary-grid { grid-template-columns: 1fr 1fr; } .table-container { overflow-x: auto; } }
+    </style>
 </head>
 <body>
-
-<div class="header">
-  <div>
-    <h1>Azure Subscription Mapping</h1>
-    <p>Read-only view of account to subscription mappings</p>
-  </div>
-</div>
-
-<div class="container">
-
-  <!-- Summary cards -->
-  <div class="cards">
-    <div class="card green">
-      <div class="lbl">Accounts</div>
-      <div class="val" id="c-accounts">…</div>
+    <div class="header">
+        <h1>Account-Subscription Mapping</h1>
+        <p>View and manage Azure subscription to account mappings</p>
     </div>
-    <div class="card blue">
-      <div class="lbl">Mapped Subscriptions</div>
-      <div class="val" id="c-subs">…</div>
+    <div class="container">
+        <div class="summary-grid">
+            <div class="summary-card accounts">
+                <div class="label">Total Accounts</div>
+                <div class="value" id="total-accounts">-</div>
+            </div>
+            <div class="summary-card subscriptions">
+                <div class="label">Mapped Subscriptions</div>
+                <div class="value" id="total-subscriptions">-</div>
+            </div>
+            <div class="summary-card unknown">
+                <div class="label">Unknown Subscriptions</div>
+                <div class="value" id="total-unknown">-</div>
+            </div>
+            <div class="summary-card multi">
+                <div class="label">Accounts with 2+ Subs</div>
+                <div class="value" id="total-multi">-</div>
+            </div>
+        </div>
+        <div id="main-view">
+            <div class="tabs">
+                <button class="tab active" data-tab="accounts">Accounts</button>
+                <button class="tab" data-tab="subscriptions">Subscriptions</button>
+                <button class="tab" data-tab="unknown">Unknown</button>
+            </div>
+            <div class="search-bar">
+                <input type="text" class="search-input" id="search-input" placeholder="Search...">
+            </div>
+            <div class="table-container">
+                <div id="table-content">
+                    <div class="loading"><div class="spinner"></div><p>Loading data...</p></div>
+                </div>
+            </div>
+        </div>
+        <div id="detail-view" class="detail-view">
+            <button class="back-btn" onclick="showMainView()">← Back to list</button>
+            <div class="detail-card">
+                <h3>Account Details</h3>
+                <div id="account-detail"></div>
+            </div>
+            <div class="detail-card">
+                <h3>Subscriptions (<span id="sub-count">0</span>)</h3>
+                <table>
+                    <thead><tr><th>Name</th><th>Subscription GUID</th></tr></thead>
+                    <tbody id="subscriptions-detail"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
-    <div class="card red">
-      <div class="lbl">Unknown Subscriptions</div>
-      <div class="val" id="c-unknown">…</div>
-    </div>
-    <div class="card purple">
-      <div class="lbl">Multi-Subscription Accounts</div>
-      <div class="val" id="c-multi">…</div>
-    </div>
-  </div>
-
-  <!-- Main list panel -->
-  <div id="list-panel">
-    <div class="tabs">
-      <button class="tab active" data-tab="accounts">Accounts</button>
-      <button class="tab"        data-tab="subscriptions">Subscriptions</button>
-      <button class="tab"        data-tab="unknown">Unknown</button>
-    </div>
-
-    <div class="toolbar">
-      <input class="search" id="search" type="text" placeholder="Search…">
-    </div>
-
-    <div class="tbl-wrap" id="tbl-wrap">
-      <div class="empty"><div class="spinner"></div>Loading…</div>
-    </div>
-  </div>
-
-  <!-- Detail panel -->
-  <div id="detail-panel">
-    <button class="back-link" onclick="closeDetail()">← Back to list</button>
-    <div class="detail-card">
-      <h3>Account Details</h3>
-      <div id="detail-account"></div>
-    </div>
-    <div class="detail-card">
-      <h3>Subscriptions (<span id="detail-sub-count">0</span>)</h3>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Name</th><th>Subscription GUID</th></tr></thead>
-          <tbody id="detail-subs"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /container -->
-
-<div id="toast"></div>
-
-<script>
-// ── Config ────────────────────────────────────────────────────────────────────
-// Data API Builder endpoints exposed by Static Web Apps
-const DATA_API = '/data-api/rest';
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let tab       = 'accounts';
-let page      = 1;
-let pageSize  = 50;
-let allRows   = [];        // full unfiltered dataset for current tab
-let filtered  = [];        // after client-side search
-let searchTmr = null;
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  loadSummary();
-  loadTab();
-
-  document.querySelectorAll('.tab').forEach(t =>
-    t.addEventListener('click', () => {
-      document.querySelector('.tab.active').classList.remove('active');
-      t.classList.add('active');
-      tab  = t.dataset.tab;
-      page = 1;
-      document.getElementById('search').value = '';
-      loadTab();
-    })
-  );
-
-  document.getElementById('search').addEventListener('input', () => {
-    clearTimeout(searchTmr);
-    searchTmr = setTimeout(() => { page = 1; applyFilter(); }, 250);
-  });
-});
-
-// ── Summary ───────────────────────────────────────────────────────────────────
-async function loadSummary() {
-  try {
-    // accounts count
-    const [acc, sub, unk] = await Promise.all([
-      apiFetch(`${DATA_API}/Account/$count`),
-      apiFetch(`${DATA_API}/Subscription/$count`),
-      apiFetch(`${DATA_API}/UnknownSubscription/$count`)
-    ]);
-    document.getElementById('c-accounts').textContent = fmt(acc.count ?? acc);
-    document.getElementById('c-subs').textContent     = fmt(sub.count ?? sub);
-    document.getElementById('c-unknown').textContent  = fmt(unk.count ?? unk);
-
-    // multi-sub accounts: fetch all subscriptions grouped by account_id
-    // Data API doesn't support GROUP BY so we calculate client-side from summary
-    document.getElementById('c-multi').textContent = '…';
-    const subsAll = await apiFetch(`${DATA_API}/Subscription?$select=account_id`);
-    const counts  = {};
-    (subsAll.value || []).forEach(r => { counts[r.account_id] = (counts[r.account_id] || 0) + 1; });
-    const multi = Object.values(counts).filter(v => v > 1).length;
-    document.getElementById('c-multi').textContent = fmt(multi);
-  } catch(e) {
-    console.warn('Summary error', e);
-  }
-}
-
-// ── Load tab data ─────────────────────────────────────────────────────────────
-async function loadTab() {
-  showLoading();
-  try {
-    let url;
-    if (tab === 'accounts')       url = `${DATA_API}/Account?$orderby=name`;
-    else if (tab === 'subscriptions') url = `${DATA_API}/AccountSubscription?$orderby=subscription_name`;
-    else                          url = `${DATA_API}/UnknownSubscription?$orderby=subscription_name`;
-
-    const data = await apiFetch(url);
-    allRows = data.value || [];
-    applyFilter();
-  } catch(e) {
-    showError('Failed to load data: ' + e.message);
-  }
-}
-
-// ── Client-side search + pagination ──────────────────────────────────────────
-function applyFilter() {
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  if (!q) {
-    filtered = allRows;
-  } else {
-    filtered = allRows.filter(r => {
-      const haystack = Object.values(r).join(' ').toLowerCase();
-      return haystack.includes(q);
-    });
-  }
-  renderTable();
-}
-
-// ── Render table ──────────────────────────────────────────────────────────────
-function renderTable() {
-  const wrap  = document.getElementById('tbl-wrap');
-  if (!filtered.length) {
-    wrap.innerHTML = '<div class="empty">No results found.</div>';
-    return;
-  }
-
-  const start = (page - 1) * pageSize;
-  const slice = filtered.slice(start, start + pageSize);
-  const total = filtered.length;
-  const pages = Math.ceil(total / pageSize);
-
-  let thead = '', rows = '';
-
-  if (tab === 'accounts') {
-    thead = '<tr><th>Account Name</th><th>Company ID</th><th></th></tr>';
-    rows  = slice.map(r => `
-      <tr>
-        <td><strong>${esc(r.name)}</strong></td>
-        <td>${esc(r.company_id)}</td>
-        <td><button class="btn-view" onclick="viewAccount(${r.account_id},'${esc(r.name)}','${esc(r.company_id)}')">View</button></td>
-      </tr>`).join('');
-
-  } else if (tab === 'subscriptions') {
-    thead = '<tr><th>Subscription Name</th><th>Account</th><th>Company ID</th><th>Subscription GUID</th></tr>';
-    rows  = slice.map(r => `
-      <tr>
-        <td><strong>${esc(r.subscription_name)}</strong></td>
-        <td>${esc(r.account_name || '')}</td>
-        <td>${esc(r.company_id || '')}</td>
-        <td><span class="guid">${esc(r.subscription_guid || '—')}</span></td>
-      </tr>`).join('');
-
-  } else {
-    thead = '<tr><th>Subscription Name</th><th>Subscription GUID</th></tr>';
-    rows  = slice.map(r => `
-      <tr>
-        <td><strong>${esc(r.subscription_name)}</strong></td>
-        <td><span class="guid">${esc(r.subscription_guid || '—')}</span></td>
-      </tr>`).join('');
-  }
-
-  wrap.innerHTML = `
-    <table>
-      <thead>${thead}</thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="pager">
-      <span>Showing ${start+1}–${Math.min(start+pageSize,total)} of ${fmt(total)}</span>
-      <div class="pager-btns">
-        <button class="btn-page" onclick="changePage(-1)" ${page===1?'disabled':''}>← Prev</button>
-        <button class="btn-page" onclick="changePage(1)"  ${page>=pages?'disabled':''}>Next →</button>
-      </div>
-    </div>`;
-}
-
-function changePage(dir) {
-  const pages = Math.ceil(filtered.length / pageSize);
-  const np = page + dir;
-  if (np >= 1 && np <= pages) { page = np; renderTable(); }
-}
-
-// ── Account detail ────────────────────────────────────────────────────────────
-async function viewAccount(id, name, companyId) {
-  document.getElementById('list-panel').style.display   = 'none';
-  document.getElementById('detail-panel').style.display = 'block';
-
-  document.getElementById('detail-account').innerHTML = `
-    <div class="detail-row"><div class="detail-lbl">Account Name</div><div class="detail-val">${esc(name)}</div></div>
-    <div class="detail-row"><div class="detail-lbl">Company ID</div><div class="detail-val">${esc(companyId)}</div></div>
-  `;
-  document.getElementById('detail-subs').innerHTML = '<tr><td colspan="2"><div class="spinner" style="margin:.5rem auto"></div></td></tr>';
-  document.getElementById('detail-sub-count').textContent = '…';
-
-  try {
-    const data = await apiFetch(`${DATA_API}/Subscription?$filter=account_id eq ${id}&$orderby=subscription_name`);
-    const subs = data.value || [];
-    document.getElementById('detail-sub-count').textContent = subs.length;
-    document.getElementById('detail-subs').innerHTML = subs.length
-      ? subs.map(s => `<tr>
-          <td><strong>${esc(s.subscription_name)}</strong></td>
-          <td><span class="guid">${esc(s.subscription_guid || '—')}</span></td>
-        </tr>`).join('')
-      : '<tr><td colspan="2" style="color:#9ca3af">No subscriptions found.</td></tr>';
-  } catch(e) {
-    showToast('Failed to load subscriptions: ' + e.message, true);
-  }
-}
-
-function closeDetail() {
-  document.getElementById('detail-panel').style.display = 'none';
-  document.getElementById('list-panel').style.display   = 'block';
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-async function apiFetch(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-function showLoading() {
-  document.getElementById('tbl-wrap').innerHTML =
-    '<div class="empty"><div class="spinner"></div>Loading…</div>';
-}
-
-function showError(msg) {
-  document.getElementById('tbl-wrap').innerHTML =
-    `<div class="empty" style="color:#b91c1c">${esc(msg)}</div>`;
-  showToast(msg, true);
-}
-
-function showToast(msg, err=false) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className   = 'show' + (err ? ' err' : '');
-  clearTimeout(t._tmr);
-  t._tmr = setTimeout(() => t.className = '', 3500);
-}
-
-function esc(s) {
-  return String(s ?? '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function fmt(n) { return Number(n).toLocaleString(); }
-</script>
+    <div class="toast" id="toast"></div>
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        let currentTab = 'accounts';
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentData = [];
+        let searchTimeout = null;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSummary();
+            loadData();
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelector('.tab.active').classList.remove('active');
+                    tab.classList.add('active');
+                    currentTab = tab.dataset.tab;
+                    currentPage = 1;
+                    loadData();
+                });
+            });
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => { currentPage = 1; loadData(); }, 300);
+            });
+        });
+        
+        async function loadSummary() {
+            try {
+                const response = await fetch(API_BASE + '/summary');
+                const data = await response.json();
+                document.getElementById('total-accounts').textContent = data.total_accounts;
+                document.getElementById('total-subscriptions').textContent = data.total_subscriptions;
+                document.getElementById('total-unknown').textContent = data.total_unknown;
+                document.getElementById('total-multi').textContent = data.accounts_with_multiple_subscriptions;
+            } catch (error) {
+                showToast('Failed to load summary: ' + error.message, true);
+            }
+        }
+        
+        async function loadData() {
+            const tableContent = document.getElementById('table-content');
+            tableContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading data...</p></div>';
+            try {
+                let endpoint = '';
+                const searchParam = document.getElementById('search-input').value;
+                const params = new URLSearchParams();
+                if (searchParam) params.set('search', searchParam);
+                params.set('page', currentPage);
+                params.set('page_size', 50);
+                
+                switch (currentTab) {
+                    case 'accounts': endpoint = API_BASE + '/accounts'; break;
+                    case 'subscriptions': endpoint = API_BASE + '/subscriptions'; break;
+                    case 'unknown': endpoint = API_BASE + '/unknown'; break;
+                }
+                
+                const response = await fetch(endpoint + '?' + params.toString());
+                if (!response.ok) throw new Error('Failed to fetch data');
+                const result = await response.json();
+                currentData = result.data || result;
+                totalPages = result.pagination?.total_pages || 1;
+                renderTable();
+            } catch (error) {
+                tableContent.innerHTML = '<div class="loading"><p>Error: ' + error.message + '</p></div>';
+                showToast('Failed to load data: ' + error.message, true);
+            }
+        }
+        
+        function renderTable() {
+            const tableContent = document.getElementById('table-content');
+            if (!currentData || currentData.length === 0) {
+                tableContent.innerHTML = '<div class="loading"><p>No data found</p></div>';
+                return;
+            }
+            let html = '<table><thead><tr>';
+            switch (currentTab) {
+                case 'accounts': html += '<th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th></th>'; break;
+                case 'subscriptions': html += '<th>Subscription Name</th><th>Account</th><th>Company ID</th><th>Subscription GUID</th>'; break;
+                case 'unknown': html += '<th>Subscription Name</th><th>Subscription GUID</th>'; break;
+            }
+            html += '</tr></thead><tbody>';
+            currentData.forEach(item => {
+                switch (currentTab) {
+                    case 'accounts':
+                        html += '<tr><td><strong>' + item.account_name + '</strong></td><td>' + item.company_id + '</td><td><span class="badge">' + item.subscription_count + '</span></td><td><button class="btn" onclick="viewAccount(' + item.account_id + ')">View</button></td></tr>';
+                        break;
+                    case 'subscriptions':
+                        const guid = item.subscription_guid || '-';
+                        html += '<tr><td><strong>' + item.subscription_name + '</strong></td><td>' + item.account_name + '</td><td>' + item.company_id + '</td><td><span class="guid">' + guid + '</span></td></tr>';
+                        break;
+                    case 'unknown':
+                        const unknownGuid = item.subscription_guid || '-';
+                        html += '<tr><td><strong>' + item.subscription_name + '</strong></td><td><span class="guid">' + unknownGuid + '</span></td></tr>';
+                        break;
+                }
+            });
+            html += '</tbody></table>';
+            html += '<div class="pagination"><div class="pagination-info">Page ' + currentPage + ' of ' + totalPages + '</div><div class="pagination-buttons"><button class="btn" onclick="changePage(-1)" ' + (currentPage === 1 ? 'disabled' : '') + '>Previous</button><button class="btn" onclick="changePage(1)" ' + (currentPage === totalPages ? 'disabled' : '') + '>Next</button></div></div>';
+            tableContent.innerHTML = html;
+        }
+        
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) { currentPage = newPage; loadData(); }
+        }
+        
+        async function viewAccount(accountId) {
+            try {
+                const response = await fetch(API_BASE + '/accounts/' + accountId);
+                const data = await response.json();
+                document.getElementById('main-view').classList.remove('active');
+                document.getElementById('detail-view').classList.add('active');
+                document.getElementById('account-detail').innerHTML = '<div class="detail-row"><div class="detail-label">Account Name</div><div class="detail-value">' + data.account.account_name + '</div></div><div class="detail-row"><div class="detail-label">Company ID</div><div class="detail-value">' + data.account.company_id + '</div></div>';
+                const subs = data.subscriptions || [];
+                document.getElementById('sub-count').textContent = subs.length;
+                document.getElementById('subscriptions-detail').innerHTML = subs.length === 0 ? '<tr><td colspan="2">No subscriptions</td></tr>' : subs.map(sub => '<tr><td><strong>' + sub.subscription_name + '</strong></td><td><span class="guid">' + (sub.subscription_guid || '-') + '</span></td></tr>').join('');
+            } catch (error) { showToast('Failed to load account: ' + error.message, true); }
+        }
+        
+        function showMainView() {
+            document.getElementById('detail-view').classList.remove('active');
+            document.getElementById('main-view').classList.add('active');
+        }
+        
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
 </body>
 </html>

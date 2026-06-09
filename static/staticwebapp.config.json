@@ -1,23 +1,11 @@
 {
-  "routes": [
-    {
-      "route": "/api/*",
-      "allowedRoles": [
-        "anonymous"
-      ]
-    }
-  ],
+  "globalHeaders": {
+    "Access-Control-Allow-Origin": "*"
+  },
   "navigationFallback": {
     "rewrite": "/index.html"
   },
-  "responseOverrides": {
-    "404": {
-      "rewrite": "/index.html",
-      "statusCode": 200
-    }
-  },
-  "globalHeaders": {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type"
+  "mimeTypes": {
+    ".json": "application/json"
   }
 }
