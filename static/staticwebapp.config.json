@@ -1,9 +1,23 @@
 {
-  "networkingOptions": {
-    "allowedIpRanges": []
+  "routes": [
+    {
+      "route": "/api/*",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html"
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html",
+      "statusCode": 200
+    }
   },
   "globalHeaders": {
-    "Access-Control-Allow-Origin": "*"
-  },
-  "apiRuntime": "python:3.11"
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type"
+  }
 }

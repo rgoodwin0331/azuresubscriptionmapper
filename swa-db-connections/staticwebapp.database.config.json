@@ -2,10 +2,10 @@
   "$schema": "https://github.com/Azure/data-api-builder/releases/latest/download/dab.draft.schema.json",
   "data-source": {
     "database-type": "mssql",
+    "connection-string": "@env('DATABASE_CONNECTION_STRING')",
     "options": {
       "set-session-context": false
-    },
-    "connection-string": "@env('DATABASE_CONNECTION_STRING')"
+    }
   },
   "runtime": {
     "rest": {
@@ -13,8 +13,7 @@
       "path": "/rest"
     },
     "graphql": {
-      "enabled": true,
-      "path": "/graphql"
+      "enabled": false
     },
     "host": {
       "mode": "production",
@@ -23,40 +22,69 @@
           "*"
         ],
         "allow-credentials": false
+      },
+      "authentication": {
+        "provider": "StaticWebApps"
       }
     }
   },
   "entities": {
-    "Accounts": {
-      "source": "dbo.accounts",
+    "AccountSubscription": {
+      "source": {
+        "object": "dbo.vw_account_subscriptions",
+        "type": "view",
+        "key-fields": [
+          "subscription_id"
+        ]
+      },
       "permissions": [
         {
+          "role": "anonymous",
           "actions": [
             "read"
-          ],
-          "role": "anonymous"
+          ]
         }
       ]
     },
-    "Subscriptions": {
-      "source": "dbo.subscriptions",
+    "Account": {
+      "source": {
+        "object": "dbo.accounts",
+        "type": "table"
+      },
       "permissions": [
         {
+          "role": "anonymous",
           "actions": [
             "read"
-          ],
-          "role": "anonymous"
+          ]
         }
       ]
     },
-    "SubscriptionsUnknown": {
-      "source": "dbo.subscriptions_unknown",
+    "Subscription": {
+      "source": {
+        "object": "dbo.subscriptions",
+        "type": "table"
+      },
       "permissions": [
         {
+          "role": "anonymous",
           "actions": [
             "read"
-          ],
-          "role": "anonymous"
+          ]
+        }
+      ]
+    },
+    "UnknownSubscription": {
+      "source": {
+        "object": "dbo.subscriptions_unknown",
+        "type": "table"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
         }
       ]
     }
