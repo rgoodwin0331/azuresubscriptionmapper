@@ -32,10 +32,7 @@
     "AccountSubscription": {
       "source": {
         "object": "dbo.vw_account_subscriptions",
-        "type": "view",
-        "key-fields": [
-          "subscription_id"
-        ]
+        "type": "view"
       },
       "permissions": [
         {
