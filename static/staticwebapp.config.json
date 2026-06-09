@@ -1,11 +1,9 @@
 {
-  "routes": [
-    {
-      "route": "/api/*",
-      "allowedRoles": ["anonymous"]
-    }
-  ],
-  "platform": {
-    "apiRuntime": "python:3.11"
-  }
+  "networkingOptions": {
+    "allowedIpRanges": []
+  },
+  "globalHeaders": {
+    "Access-Control-Allow-Origin": "*"
+  },
+  "apiRuntime": "python:3.11"
 }

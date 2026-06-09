@@ -1,0 +1,64 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/latest/download/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "options": {
+      "set-session-context": false
+    },
+    "connection-string": "@env('DATABASE_CONNECTION_STRING')"
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/rest"
+    },
+    "graphql": {
+      "enabled": true,
+      "path": "/graphql"
+    },
+    "host": {
+      "mode": "production",
+      "cors": {
+        "origins": [
+          "*"
+        ],
+        "allow-credentials": false
+      }
+    }
+  },
+  "entities": {
+    "Accounts": {
+      "source": "dbo.accounts",
+      "permissions": [
+        {
+          "actions": [
+            "read"
+          ],
+          "role": "anonymous"
+        }
+      ]
+    },
+    "Subscriptions": {
+      "source": "dbo.subscriptions",
+      "permissions": [
+        {
+          "actions": [
+            "read"
+          ],
+          "role": "anonymous"
+        }
+      ]
+    },
+    "SubscriptionsUnknown": {
+      "source": "dbo.subscriptions_unknown",
+      "permissions": [
+        {
+          "actions": [
+            "read"
+          ],
+          "role": "anonymous"
+        }
+      ]
+    }
+  }
+}
