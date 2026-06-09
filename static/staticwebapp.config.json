@@ -1,9 +1,22 @@
 {
-  "globalHeaders": {
-    "Access-Control-Allow-Origin": "*"
-  },
   "navigationFallback": {
-    "rewrite": "/index.html"
+    "rewrite": "index.html"
+  },
+  "routes": [
+    {
+      "route": "/api/*",
+      "allowedRoles": ["anonymous"]
+    }
+  ],
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html"
+    }
+  },
+  "globalHeaders": {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "*"
   },
   "mimeTypes": {
     ".json": "application/json"
