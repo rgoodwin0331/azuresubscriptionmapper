@@ -102,7 +102,7 @@ app.http('accounts', {
       // Count query
       let countQuery = 'SELECT COUNT(*) AS total FROM Accounts';
       let dataQuery = `
-        SELECT a.account_id, a.account_name, a.company_id, 
+        SELECT a.account_id, a.name, a.company_id, 
                COUNT(s.subscription_id) AS subscription_count
         FROM Accounts a
         LEFT JOIN Subscriptions s ON a.account_id = s.account_id
@@ -112,7 +112,7 @@ app.http('accounts', {
       const params = [];
       
       if (search) {
-        conditions.push('a.account_name LIKE @search');
+        conditions.push('a.name LIKE @search');
         params.push({ name: 'search', value: `%${search}%` });
       }
       
@@ -121,7 +121,7 @@ app.http('accounts', {
         dataQuery += ' WHERE ' + conditions.join(' AND ');
       }
       
-      dataQuery += ' GROUP BY a.account_id, a.account_name, a.company_id ORDER BY a.account_name OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY';
+      dataQuery += ' GROUP BY a.account_id, a.name, a.company_id ORDER BY a.name OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY';
       
       // Get total count
       const countReq = pool.request();
