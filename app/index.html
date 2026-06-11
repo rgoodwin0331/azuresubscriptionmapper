@@ -7,11 +7,17 @@
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f7fa; color:#333; }
-    .header { background:linear-gradient(135deg,#0078d4,#106ebe); color:white; padding:1.5rem 2rem; box-shadow:0 2px 8px rgba(0,0,0,.1); display:flex; justify-content:space-between; align-items:center; }
+
+    /* ── Header ── */
+    .header { background:linear-gradient(135deg,#0078d4,#106ebe); color:white; padding:1.5rem 2rem; box-shadow:0 2px 8px rgba(0,0,0,.1); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; }
     .header-left h1 { font-size:1.5rem; font-weight:600; }
     .header-left p  { opacity:.9; margin-top:.25rem; font-size:.9rem; }
     .header-right   { display:flex; gap:.75rem; flex-wrap:wrap; }
+
+    /* ── Layout ── */
     .container { max-width:1400px; margin:0 auto; padding:1.5rem; }
+
+    /* ── Summary cards ── */
     .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-bottom:2rem; }
     .summary-card { background:white; border-radius:8px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,.08); border-left:4px solid #0078d4; }
     .summary-card.accounts      { border-left-color:#107c10; }
@@ -20,144 +26,110 @@
     .summary-card.multi         { border-left-color:#5c2d91; }
     .summary-card .label { font-size:.85rem; color:#666; text-transform:uppercase; letter-spacing:.5px; }
     .summary-card .value { font-size:2rem; font-weight:700; margin-top:.5rem; }
-    .tabs { display:flex; gap:.5rem; margin-bottom:1rem; border-bottom:1px solid #e0e0e0; }
-    .tab  { padding:.75rem 1.5rem; background:none; border:none; cursor:pointer; font-size:.95rem; color:#666; border-bottom:2px solid transparent; }
-    .tab:hover  { color:#0078d4; }
-    .tab.active { color:#0078d4; border-bottom-color:#0078d4; font-weight:500; }
+
+    /* ── Table wrapper ── */
     .table-wrapper { background:white; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:hidden; }
+    .tabs { display:flex; gap:.5rem; border-bottom:1px solid #e0e0e0; padding:0 1rem; }
+    .tab  { padding:.75rem 1.25rem; background:none; border:none; cursor:pointer; font-size:.95rem; color:#666; border-bottom:3px solid transparent; margin-bottom:-1px; }
+    .tab:hover  { color:#0078d4; }
+    .tab.active { color:#0078d4; border-bottom-color:#0078d4; font-weight:600; }
+
     .table-toolbar { display:flex; justify-content:space-between; align-items:center; padding:1rem; border-bottom:1px solid #e0e0e0; gap:1rem; flex-wrap:wrap; }
-    .search-box  { display:flex; align-items:center; gap:.5rem; border:1px solid #ddd; border-radius:4px; padding:.5rem .75rem; background:white; flex:1; min-width:200px; max-width:400px; }
+    .search-box    { display:flex; align-items:center; gap:.5rem; border:1px solid #ddd; border-radius:4px; padding:.5rem .75rem; background:white; flex:1; min-width:200px; max-width:400px; }
     .search-box input { border:none; outline:none; font-size:.9rem; width:100%; }
+
     table { width:100%; border-collapse:collapse; }
     th,td { padding:.85rem 1rem; text-align:left; border-bottom:1px solid #f0f0f0; font-size:.9rem; }
     th { background:#fafafa; font-weight:600; color:#555; text-transform:uppercase; font-size:.78rem; letter-spacing:.5px; }
     tr:hover td { background:#fafbfc; }
-    .badge { display:inline-block; padding:.2rem .6rem; border-radius:12px; font-size:.78rem; font-weight:500; }
-    .badge-blue   { background:#dbeafe; color:#1e40af; }
-    .badge-green  { background:#d1fae5; color:#065f46; }
-    .badge-orange { background:#ffedd5; color:#9a3412; }
-    .badge-purple { background:#ede9fe; color:#5b21b6; }
+
     .loading     { text-align:center; padding:3rem; color:#666; }
     .spinner     { width:40px; height:40px; border:3px solid #f0f0f0; border-top-color:#0078d4; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 1rem; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .error-state { text-align:center; padding:3rem; color:#d83b01; }
-    .pagination         { display:flex; justify-content:space-between; align-items:center; padding:1rem; background:#fafafa; border-top:1px solid #e0e0e0; }
+
+    .pagination         { display:flex; justify-content:space-between; align-items:center; padding:1rem; background:#fafafa; border-top:1px solid #e0e0e0; flex-wrap:wrap; gap:.5rem; }
     .pagination-info    { color:#666; font-size:.9rem; }
     .pagination-buttons { display:flex; gap:.5rem; }
-    .btn          { padding:.5rem 1rem; border:1px solid #ddd; background:white; border-radius:4px; cursor:pointer; font-size:.9rem; }
-    .btn:hover:not(:disabled) { background:#f5f5f5; }
-    .btn:disabled { opacity:.5; cursor:not-allowed; }
-    .btn-primary  { background:#0078d4; color:white; border-color:#0078d4; font-weight:500; }
-    .btn-primary:hover:not(:disabled) { background:#106ebe; border-color:#106ebe; }
-    .btn-secondary { background:#5c2d91; color:white; border-color:#5c2d91; font-weight:500; }
-    .btn-secondary:hover:not(:disabled) { background:#4b2478; border-color:#4b2478; }
-    .detail-view        { display:none; }
+
+    /* ── Detail view ── */
+    .detail-view        { display:none; padding:1rem; }
     .detail-view.active { display:block; }
     .back-btn  { display:inline-flex; align-items:center; gap:.5rem; padding:.5rem 1rem; background:none; border:none; color:#0078d4; cursor:pointer; font-size:.95rem; margin-bottom:1rem; }
     .back-btn:hover { text-decoration:underline; }
     .detail-card    { background:white; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:1.5rem; margin-bottom:1rem; }
-    .detail-card h3 { font-size:1.1rem; margin-bottom:1rem; }
-    .detail-row           { display:flex; padding:.75rem 0; border-bottom:1px solid #f0f0f0; }
+    .detail-card h3 { font-size:1.1rem; margin-bottom:1rem; border-bottom:1px solid #f0f0f0; padding-bottom:.75rem; }
+    .detail-row           { display:flex; padding:.6rem 0; border-bottom:1px solid #f0f0f0; }
     .detail-row:last-child { border-bottom:none; }
-    .detail-label { width:180px; font-weight:500; color:#666; }
-    .detail-value { flex:1; }
+    .detail-label { width:160px; font-weight:500; color:#666; flex-shrink:0; }
+    .detail-value { flex:1; word-break:break-all; }
 
-    /* ── Shared Modal Styles ── */
-    .modal-overlay {
-      position:fixed; inset:0; background:rgba(0,0,0,.5);
-      display:flex; align-items:center; justify-content:center;
-      z-index:1000; opacity:0; pointer-events:none; transition:opacity .2s;
-    }
+    /* ── Buttons ── */
+    .btn          { padding:.5rem 1rem; border:1px solid #ddd; background:white; border-radius:4px; cursor:pointer; font-size:.9rem; transition:background .15s; }
+    .btn:hover:not(:disabled) { background:#f5f5f5; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-primary  { background:#0078d4; color:white; border-color:#0078d4; font-weight:500; }
+    .btn-primary:hover:not(:disabled) { background:#106ebe; }
+    .btn-secondary { background:#5c2d91; color:white; border-color:#5c2d91; font-weight:500; }
+    .btn-secondary:hover:not(:disabled) { background:#4b2478; }
+
+    /* ── Shared modal styles ── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:1000; opacity:0; pointer-events:none; transition:opacity .2s; }
     .modal-overlay.open { opacity:1; pointer-events:all; }
-    .modal {
-      background:white; border-radius:8px;
-      box-shadow:0 8px 32px rgba(0,0,0,.2);
-      width:100%; max-width:560px; max-height:90vh; overflow-y:auto;
-      transform:translateY(-20px); transition:transform .2s;
-    }
+    .modal { background:white; border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,.2); width:100%; max-width:560px; max-height:90vh; overflow-y:auto; transform:translateY(-20px); transition:transform .2s; }
     .modal-overlay.open .modal { transform:translateY(0); }
-    .modal-header {
-      display:flex; justify-content:space-between; align-items:center;
-      padding:1.25rem 1.5rem; border-bottom:1px solid #e0e0e0;
-    }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; padding:1.25rem 1.5rem; border-bottom:1px solid #e0e0e0; }
     .modal-header h2 { font-size:1.15rem; font-weight:600; }
     .modal-close { background:none; border:none; font-size:1.4rem; cursor:pointer; color:#666; line-height:1; }
     .modal-close:hover { color:#333; }
-    .modal-body { padding:1.5rem; }
+    .modal-body   { padding:1.5rem; }
     .modal-footer { padding:1rem 1.5rem; border-top:1px solid #e0e0e0; display:flex; justify-content:flex-end; gap:.75rem; }
+
+    /* ── Form styles ── */
     .form-group { margin-bottom:1.25rem; }
     .form-label { display:block; font-size:.9rem; font-weight:500; margin-bottom:.4rem; }
-    .required { color:#d83b01; margin-left:2px; }
-    .form-input {
-      width:100%; padding:.6rem .75rem; border:1px solid #ddd;
-      border-radius:4px; font-size:.9rem; transition:border-color .15s;
-    }
+    .required   { color:#d83b01; margin-left:2px; }
+    .form-input { width:100%; padding:.6rem .75rem; border:1px solid #ddd; border-radius:4px; font-size:.9rem; transition:border-color .15s; }
     .form-input:focus { outline:none; border-color:#0078d4; box-shadow:0 0 0 2px rgba(0,120,212,.15); }
     .form-input.error { border-color:#d83b01; }
     .form-hint  { font-size:.8rem; color:#666; margin-top:.3rem; }
     .form-error { font-size:.8rem; color:#d83b01; margin-top:.3rem; display:none; }
     .form-error.visible { display:block; }
-    .modal-api-error {
-      background:#fff0ed; border:1px solid #f9d3cb; border-radius:6px;
-      padding:.75rem 1rem; margin-bottom:1rem; color:#a4262c;
-      font-size:.9rem; display:none;
-    }
-    .modal-api-error.visible { display:block; }
-    .modal-success {
-      background:#dff6dd; border:1px solid #a8e6a3; border-radius:6px;
-      padding:.75rem 1rem; margin-bottom:1rem; color:#107c10;
-      font-size:.9rem; display:none;
-    }
-    .modal-success.visible { display:block; }
 
-    /* ── Account Search / Typeahead ── */
+    .modal-api-error { background:#fff0ed; border:1px solid #f9d3cb; border-radius:6px; padding:.75rem 1rem; margin-bottom:1rem; color:#a4262c; font-size:.9rem; display:none; }
+    .modal-api-error.visible { display:block; }
+    .modal-success   { background:#dff6dd; border:1px solid #a8e6a3; border-radius:6px; padding:.75rem 1rem; margin-bottom:1rem; color:#107c10; font-size:.9rem; display:none; }
+    .modal-success.visible   { display:block; }
+
+    /* ── Account typeahead ── */
     .account-search-wrapper { position:relative; }
-    .account-dropdown {
-      position:absolute; top:100%; left:0; right:0; background:white;
-      border:1px solid #ddd; border-top:none; border-radius:0 0 4px 4px;
-      box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:100;
-      max-height:220px; overflow-y:auto; display:none;
-    }
-    .account-dropdown.open { display:block; }
-    .account-option {
-      padding:.6rem .75rem; cursor:pointer; font-size:.9rem;
-      border-bottom:1px solid #f0f0f0;
-    }
+    .account-dropdown { position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-top:none; border-radius:0 0 4px 4px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:200; max-height:220px; overflow-y:auto; display:none; }
+    .account-dropdown.open  { display:block; }
+    .account-option { padding:.6rem .75rem; cursor:pointer; font-size:.9rem; border-bottom:1px solid #f0f0f0; }
     .account-option:last-child { border-bottom:none; }
     .account-option:hover, .account-option.focused { background:#f0f6ff; }
-    .account-option .acct-id { font-size:.78rem; color:#888; margin-left:.5rem; }
+    .account-option .acct-meta { font-size:.78rem; color:#888; margin-left:.5rem; }
     .account-option-empty { padding:.75rem; color:#888; font-size:.88rem; font-style:italic; }
 
-    /* Toast */
-    .toast { position:fixed; bottom:2rem; right:2rem; padding:1rem 1.5rem; background:#323130; color:white; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.15); transform:translateY(100px); opacity:0; transition:all .3s; z-index:3000; }
-    .toast.show  { transform:translateY(0); opacity:1; }
-    .toast.error { background:#d83b01; }
-    .toast.success { background:#107c10; }
-
     @media(max-width:768px){
-      .header { flex-direction:column; align-items:flex-start; gap:1rem; }
-      .header-right { width:100%; }
-      .container { padding:1rem; }
+      .header { flex-direction:column; align-items:flex-start; }
       .summary-grid { grid-template-columns:1fr 1fr; }
-      .table-container { overflow-x:auto; }
       .modal { margin:1rem; max-width:100%; }
+      .table-wrapper { overflow-x:auto; }
     }
   </style>
 </head>
 <body>
 
+<!-- ── Header ── -->
 <div class="header">
   <div class="header-left">
     <h1>Account Subscription Mapping</h1>
     <p>View ServiceNow Accounts and Azure Subscriptions</p>
   </div>
   <div class="header-right">
-    <button class="btn btn-secondary" onclick="openAddSubModal()" style="white-space:nowrap;">
-      + Add Subscription
-    </button>
-    <button class="btn btn-primary" onclick="openAddMappingModal()" style="white-space:nowrap;">
-      + Add New Mapping
-    </button>
+    <button class="btn btn-secondary" onclick="openAddSubModal()">+ Add Subscription</button>
+    <button class="btn btn-primary"   onclick="openAddMappingModal()">+ Add New Mapping</button>
   </div>
 </div>
 
@@ -183,7 +155,7 @@
     </div>
   </div>
 
-  <!-- Tabs + table -->
+  <!-- Tab table -->
   <div class="table-wrapper">
     <div class="tabs">
       <button class="tab active" data-tab="accounts">Accounts</button>
@@ -191,16 +163,18 @@
       <button class="tab" data-tab="unknown">Unknown</button>
     </div>
 
-    <div class="table-toolbar">
-      <div class="search-box">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="search-input" placeholder="Search…" autocomplete="off">
-      </div>
-      <div id="toolbar-info" style="color:#666;font-size:.9rem;"></div>
-    </div>
-
+    <!-- List view -->
     <div id="list-view">
-      <div id="table-container"><div class="loading"><div class="spinner"></div>Loading data...</div></div>
+      <div class="table-toolbar">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="search-input" placeholder="Search…" autocomplete="off">
+        </div>
+        <span id="toolbar-info" style="color:#666;font-size:.9rem;"></span>
+      </div>
+      <div id="table-container">
+        <div class="loading"><div class="spinner"></div>Loading data...</div>
+      </div>
       <div class="pagination">
         <span class="pagination-info" id="pagination-info"></span>
         <div class="pagination-buttons">
@@ -210,6 +184,7 @@
       </div>
     </div>
 
+    <!-- Detail view -->
     <div id="detail-view" class="detail-view">
       <button class="back-btn" onclick="closeDetail()">← Back to list</button>
       <div class="detail-card">
@@ -219,7 +194,7 @@
       <div class="detail-card">
         <h3>Subscriptions (<span id="detail-sub-count">0</span>)</h3>
         <table>
-          <thead><tr><th>Name</th><th>Subscription GUID</th></tr></thead>
+          <thead><tr><th>Subscription Name</th><th>Subscription GUID</th></tr></thead>
           <tbody id="detail-subs-body"></tbody>
         </table>
       </div>
@@ -228,602 +203,531 @@
 
 </div>
 
-<!-- ════════════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════════
      MODAL 1 — Add New Account & Subscription
-     ════════════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="add-mapping-overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal1-title">
-
     <div class="modal-header">
-      <h2 id="modal1-title">Add New Account & Subscription</h2>
-      <button class="modal-close" onclick="closeAddMappingModal()" aria-label="Close">×</button>
+      <h2 id="modal1-title">Add New Account &amp; Subscription</h2>
+      <button class="modal-close" onclick="closeAddMappingModal()" aria-label="Close">&times;</button>
     </div>
-
     <div class="modal-body">
       <div class="modal-api-error" id="mapping-api-error"></div>
       <div class="modal-success"   id="mapping-success"></div>
-
       <div class="form-group">
-        <label class="form-label" for="input-account-name">
-          Account Name <span class="required">*</span>
-        </label>
-        <input type="text" id="input-account-name" class="form-input"
-               placeholder="e.g. Contoso - Finance" autocomplete="off">
-        <div class="form-error" id="err-account-name"></div>
+        <label class="form-label" for="m1-account-name">Account Name <span class="required">*</span></label>
+        <input type="text" id="m1-account-name" class="form-input" placeholder="e.g. Contoso - Finance" autocomplete="off">
+        <div class="form-error" id="err-m1-account-name"></div>
       </div>
-
       <div class="form-group">
-        <label class="form-label" for="input-company-id">
-          Company ID <span class="required">*</span>
-        </label>
-        <input type="text" id="input-company-id" class="form-input"
-               placeholder="e.g. 12345" autocomplete="off">
-        <div class="form-error" id="err-company-id"></div>
+        <label class="form-label" for="m1-company-id">Company ID <span class="required">*</span></label>
+        <input type="text" id="m1-company-id" class="form-input" placeholder="e.g. 12345" autocomplete="off">
+        <div class="form-error" id="err-m1-company-id"></div>
       </div>
-
       <div class="form-group">
-        <label class="form-label" for="input-subscription-name">
-          Subscription Name <span class="required">*</span>
-        </label>
-        <input type="text" id="input-subscription-name" class="form-input"
-               placeholder="e.g. Contoso Finance Production" autocomplete="off">
-        <div class="form-error" id="err-subscription-name"></div>
+        <label class="form-label" for="m1-sub-name">Subscription Name <span class="required">*</span></label>
+        <input type="text" id="m1-sub-name" class="form-input" placeholder="e.g. Contoso Finance Production" autocomplete="off">
+        <div class="form-error" id="err-m1-sub-name"></div>
       </div>
-
       <div class="form-group">
-        <label class="form-label" for="input-subscription-guid">
-          Subscription ID (GUID) <span class="required">*</span>
-        </label>
-        <input type="text" id="input-subscription-guid" class="form-input"
-               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-               autocomplete="off" spellcheck="false">
-        <div class="form-hint">Azure Subscription GUID — must be unique. Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</div>
-        <div class="form-error" id="err-subscription-guid"></div>
+        <label class="form-label" for="m1-sub-guid">Subscription ID (GUID) <span class="required">*</span></label>
+        <input type="text" id="m1-sub-guid" class="form-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+        <div class="form-hint">Azure Subscription GUID — must be unique</div>
+        <div class="form-error" id="err-m1-sub-guid"></div>
       </div>
     </div>
-
     <div class="modal-footer">
-      <button class="btn" onclick="closeAddMappingModal()" id="modal-cancel-btn">Cancel</button>
-      <button class="btn btn-primary" onclick="submitAddMapping()" id="modal-submit-btn">Save Mapping</button>
+      <button class="btn" id="m1-cancel" onclick="closeAddMappingModal()">Cancel</button>
+      <button class="btn btn-primary" id="m1-submit" onclick="submitAddMapping()">Save Mapping</button>
     </div>
-
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════════
      MODAL 2 — Add Subscription to Existing Account
-     ════════════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="add-sub-overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal2-title">
-
     <div class="modal-header">
       <h2 id="modal2-title">Add Subscription to Existing Account</h2>
-      <button class="modal-close" onclick="closeAddSubModal()" aria-label="Close">×</button>
+      <button class="modal-close" onclick="closeAddSubModal()" aria-label="Close">&times;</button>
     </div>
-
     <div class="modal-body">
       <div class="modal-api-error" id="sub-api-error"></div>
       <div class="modal-success"   id="sub-success"></div>
-
       <div class="form-group">
-        <label class="form-label" for="sub-account-search">
-          Account Name <span class="required">*</span>
-        </label>
+        <label class="form-label" for="m2-account-search">Account Name <span class="required">*</span></label>
         <div class="account-search-wrapper">
-          <input type="text" id="sub-account-search" class="form-input"
+          <input type="text" id="m2-account-search" class="form-input"
                  placeholder="Type to search accounts…"
                  autocomplete="off"
                  oninput="onAccountSearch(this.value)"
                  onkeydown="onAccountSearchKey(event)">
           <div class="account-dropdown" id="account-dropdown"></div>
         </div>
-        <div class="form-error" id="err-sub-account"></div>
-        <input type="hidden" id="sub-account-id">
+        <div class="form-error" id="err-m2-account"></div>
+        <input type="hidden" id="m2-account-id">
       </div>
-
       <div class="form-group">
-        <label class="form-label" for="sub-subscription-name">
-          Subscription Name <span class="required">*</span>
-        </label>
-        <input type="text" id="sub-subscription-name" class="form-input"
-               placeholder="e.g. Contoso Finance Production" autocomplete="off">
-        <div class="form-error" id="err-sub-subscription-name"></div>
+        <label class="form-label" for="m2-sub-name">Subscription Name <span class="required">*</span></label>
+        <input type="text" id="m2-sub-name" class="form-input" placeholder="e.g. Contoso Finance Production" autocomplete="off">
+        <div class="form-error" id="err-m2-sub-name"></div>
       </div>
-
       <div class="form-group">
-        <label class="form-label" for="sub-subscription-guid">
-          Subscription ID (GUID) <span class="required">*</span>
-        </label>
-        <input type="text" id="sub-subscription-guid" class="form-input"
-               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-               autocomplete="off" spellcheck="false">
-        <div class="form-hint">Azure Subscription GUID — must be unique. Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</div>
-        <div class="form-error" id="err-sub-subscription-guid"></div>
+        <label class="form-label" for="m2-sub-guid">Subscription ID (GUID) <span class="required">*</span></label>
+        <input type="text" id="m2-sub-guid" class="form-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+        <div class="form-hint">Azure Subscription GUID — must be unique</div>
+        <div class="form-error" id="err-m2-sub-guid"></div>
       </div>
     </div>
-
     <div class="modal-footer">
-      <button class="btn" onclick="closeAddSubModal()" id="sub-cancel-btn">Cancel</button>
-      <button class="btn btn-primary" onclick="submitAddSubscription()" id="sub-submit-btn">Save Subscription</button>
+      <button class="btn" id="m2-cancel" onclick="closeAddSubModal()">Cancel</button>
+      <button class="btn btn-primary" id="m2-submit" onclick="submitAddSubscription()">Save Subscription</button>
     </div>
-
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
 <script>
-  // ────────────────────────────────────────────────────────────
-  // Config
-  // ────────────────────────────────────────────────────────────
-  const API_BASE = window.location.origin + '/api';
+// ─────────────────────────────────────────────────────────
+// Config & state
+// ─────────────────────────────────────────────────────────
+const API = '/api';
+let currentTab   = 'accounts';
+let currentPage  = 1;
+let totalPages   = 1;
+let searchTimer  = null;
 
-  let currentTab    = 'accounts';
-  let currentPage   = 1;
-  let totalPages    = 1;
-  let currentData   = [];
-  let searchTimeout = null;
+// Typeahead state
+let acctTimer        = null;
+let acctItems        = [];
+let acctFocusIdx     = -1;
+let selectedAcctId   = null;
 
-  // ── Account typeahead state ──
-  let acctSearchTimeout  = null;
-  let acctDropdownItems  = [];
-  let acctFocusedIndex   = -1;
-  let selectedAccountId  = null;
+// ─────────────────────────────────────────────────────────
+// Bootstrap
+// ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadSummary();
+  loadData();
 
-  // ────────────────────────────────────────────────────────────
-  // Bootstrap
-  // ────────────────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', () => {
-    loadSummary();
-    loadData();
-
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelector('.tab.active').classList.remove('active');
-        tab.classList.add('active');
-        currentTab  = tab.dataset.tab;
-        currentPage = 1;
-        document.getElementById('search-input').value = '';
-        loadData();
-      });
-    });
-
-    document.getElementById('search-input').addEventListener('input', e => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        currentPage = 1;
-        loadData(e.target.value);
-      }, 300);
-    });
-
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.account-search-wrapper')) {
-        closeAccountDropdown();
-      }
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelector('.tab.active').classList.remove('active');
+      tab.classList.add('active');
+      currentTab  = tab.dataset.tab;
+      currentPage = 1;
+      document.getElementById('search-input').value = '';
+      loadData();
     });
   });
 
-  // ────────────────────────────────────────────────────────────
-  // Summary
-  // ────────────────────────────────────────────────────────────
-  async function loadSummary() {
-    try {
-      const r = await fetch(`${API_BASE}/summary`);
-      const d = await r.json();
-      document.getElementById('total-accounts').textContent      = d.totalAccounts      ?? '-';
-      document.getElementById('total-subscriptions').textContent = d.mappedSubscriptions ?? '-';
-      document.getElementById('total-unknown').textContent       = d.unknownSubscriptions ?? '-';
-      document.getElementById('total-multi').textContent         = d.accountsWithMultipleSubs ?? '-';
-    } catch(e) {
-      console.error('Summary load failed', e);
-    }
-  }
+  document.getElementById('search-input').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentPage = 1; loadData(e.target.value); }, 300);
+  });
 
-  // ────────────────────────────────────────────────────────────
-  // Data / table
-  // ────────────────────────────────────────────────────────────
-  async function loadData(search = '') {
-    showLoading();
-    try {
-      const params = new URLSearchParams({ page: currentPage, limit: 25, search });
-      const endpoint = currentTab === 'accounts'       ? 'accounts'
-                     : currentTab === 'subscriptions'  ? 'subscriptions'
-                     : 'unknown-subscriptions';
-      const r = await fetch(`${API_BASE}/${endpoint}?${params}`);
-      const d = await r.json();
-      currentData = d.data || [];
-      totalPages  = d.totalPages || 1;
-      renderTable(currentData);
-      updatePagination(d.total || 0, d.page || 1, totalPages);
-    } catch(e) {
-      document.getElementById('table-container').innerHTML =
-        '<div class="error-state">⚠️ Failed to load data. Please try again.</div>';
-    }
-  }
+  // Close account dropdown when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.account-search-wrapper')) closeAccountDropdown();
+  });
 
-  function showLoading() {
+  // Close modals on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeAddMappingModal();
+      closeAddSubModal();
+    }
+  });
+
+  // Close modals on overlay click
+  document.getElementById('add-mapping-overlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeAddMappingModal();
+  });
+  document.getElementById('add-sub-overlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeAddSubModal();
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Summary — keys match exactly what the API returns:
+//   totalAccounts, mappedSubscriptions,
+//   unknownSubscriptions, accountsWithMultipleSubs
+// ─────────────────────────────────────────────────────────
+async function loadSummary() {
+  try {
+    const r = await fetch(`${API}/summary`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    document.getElementById('total-accounts').textContent      = d.totalAccounts             ?? '-';
+    document.getElementById('total-subscriptions').textContent = d.mappedSubscriptions        ?? '-';
+    document.getElementById('total-unknown').textContent       = d.unknownSubscriptions       ?? '-';
+    document.getElementById('total-multi').textContent         = d.accountsWithMultipleSubs   ?? '-';
+  } catch(e) {
+    console.error('Summary load failed:', e);
+    ['total-accounts','total-subscriptions','total-unknown','total-multi']
+      .forEach(id => { document.getElementById(id).textContent = '!'; });
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Data / table
+// Tab "unknown" maps to route "unknown-subscriptions"
+// ─────────────────────────────────────────────────────────
+function tabToEndpoint(tab) {
+  if (tab === 'accounts')      return 'accounts';
+  if (tab === 'subscriptions') return 'subscriptions';
+  return 'unknown-subscriptions'; // tab === 'unknown'
+}
+
+async function loadData(search = '') {
+  showLoading();
+  try {
+    const params   = new URLSearchParams({ page: currentPage, limit: 25, search });
+    const endpoint = tabToEndpoint(currentTab);
+    const r = await fetch(`${API}/${endpoint}?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+
+    const data = d.data || [];
+    totalPages  = d.totalPages || 1;
+    const total = d.total || 0;
+
+    renderTable(data);
+    updatePagination(total, d.page || currentPage, totalPages);
+  } catch(e) {
+    console.error('Data load failed:', e);
     document.getElementById('table-container').innerHTML =
-      '<div class="loading"><div class="spinner"></div>Loading data...</div>';
+      `<div class="error-state">⚠️ Failed to load data — ${e.message}</div>`;
   }
+}
 
-  function renderTable(data) {
-    if (!data.length) {
-      document.getElementById('table-container').innerHTML =
-        '<div class="loading" style="color:#666;">No records found.</div>';
-      return;
-    }
-    if (currentTab === 'accounts')      renderAccounts(data);
-    else if (currentTab === 'subscriptions') renderSubscriptions(data);
-    else renderUnknown(data);
+function showLoading() {
+  document.getElementById('table-container').innerHTML =
+    '<div class="loading"><div class="spinner"></div>Loading data...</div>';
+}
+
+function renderTable(data) {
+  if (!data.length) {
+    document.getElementById('table-container').innerHTML =
+      '<div class="loading" style="color:#888;">No records found.</div>';
+    return;
   }
+  if (currentTab === 'accounts')      renderAccounts(data);
+  else if (currentTab === 'subscriptions') renderSubscriptions(data);
+  else renderUnknown(data);
+}
 
-  function renderAccounts(data) {
-    const rows = data.map(a => `
-      <tr style="cursor:pointer;" onclick="openDetail(${a.account_id})">
-        <td>${esc(a.account_name)}</td>
-        <td>${esc(String(a.company_id ?? ''))}</td>
-        <td><span class="badge badge-blue">${a.subscription_count ?? 0}</span></td>
-        <td>${esc(a.account_id?.toString() ?? '')}</td>
-      </tr>`).join('');
-    document.getElementById('table-container').innerHTML = `
-      <table>
-        <thead><tr><th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th>Account ID</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  }
+function renderAccounts(data) {
+  const rows = data.map(a => `
+    <tr style="cursor:pointer;" onclick="openDetail(${a.account_id})">
+      <td>${esc(a.account_name ?? '')}</td>
+      <td>${esc(String(a.company_id ?? ''))}</td>
+      <td><span style="display:inline-block;padding:.2rem .6rem;border-radius:12px;font-size:.78rem;font-weight:500;background:#dbeafe;color:#1e40af;">${a.subscription_count ?? 0}</span></td>
+      <td>${esc(String(a.account_id ?? ''))}</td>
+    </tr>`).join('');
+  document.getElementById('table-container').innerHTML = `
+    <table>
+      <thead><tr><th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th>Account ID</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
 
-  function renderSubscriptions(data) {
-    const rows = data.map(s => `
-      <tr>
-        <td>${esc(s.subscription_name ?? '')}</td>
-        <td><code style="font-size:.82rem;">${esc(s.subscription_guid ?? '')}</code></td>
-        <td>${esc(s.account_name ?? '')}</td>
-        <td>${esc(String(s.company_id ?? ''))}</td>
-      </tr>`).join('');
-    document.getElementById('table-container').innerHTML = `
-      <table>
-        <thead><tr><th>Subscription Name</th><th>Subscription GUID</th><th>Account Name</th><th>Company ID</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  }
+function renderSubscriptions(data) {
+  const rows = data.map(s => `
+    <tr>
+      <td>${esc(s.subscription_name ?? '')}</td>
+      <td><code style="font-size:.82rem;">${esc(s.subscription_guid ?? '')}</code></td>
+      <td>${esc(s.account_name ?? '')}</td>
+      <td>${esc(String(s.company_id ?? ''))}</td>
+    </tr>`).join('');
+  document.getElementById('table-container').innerHTML = `
+    <table>
+      <thead><tr><th>Subscription Name</th><th>Subscription GUID</th><th>Account Name</th><th>Company ID</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
 
-  function renderUnknown(data) {
-    const rows = data.map(u => `
-      <tr>
-        <td><code style="font-size:.82rem;">${esc(u.subscription_guid ?? '')}</code></td>
-        <td>${esc(u.subscription_name ?? '')}</td>
-        <td>${esc(u.source ?? '')}</td>
-      </tr>`).join('');
-    document.getElementById('table-container').innerHTML = `
-      <table>
-        <thead><tr><th>Subscription GUID</th><th>Name</th><th>Source</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  }
+function renderUnknown(data) {
+  const rows = data.map(u => `
+    <tr>
+      <td>${esc(String(u.id ?? ''))}</td>
+      <td>${esc(u.subscription_name ?? '')}</td>
+      <td><code style="font-size:.82rem;">${esc(u.subscription_guid ?? '')}</code></td>
+    </tr>`).join('');
+  document.getElementById('table-container').innerHTML = `
+    <table>
+      <thead><tr><th>ID</th><th>Subscription Name</th><th>Subscription GUID</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
 
-  function updatePagination(total, page, pages) {
-    const start = (page - 1) * 25 + 1;
-    const end   = Math.min(page * 25, total);
-    document.getElementById('pagination-info').textContent =
-      total ? `Showing ${start}–${end} of ${total}` : '';
-    document.getElementById('prev-btn').disabled = page <= 1;
-    document.getElementById('next-btn').disabled = page >= pages;
-    document.getElementById('toolbar-info').textContent =
-      pages > 1 ? `Page ${page} of ${pages}` : '';
-  }
+function updatePagination(total, page, pages) {
+  const start = total ? (page - 1) * 25 + 1 : 0;
+  const end   = Math.min(page * 25, total);
+  document.getElementById('pagination-info').textContent =
+    total ? `Showing ${start}–${end} of ${total}` : '';
+  document.getElementById('prev-btn').disabled = page <= 1;
+  document.getElementById('next-btn').disabled = page >= pages;
+  document.getElementById('toolbar-info').textContent =
+    pages > 1 ? `Page ${page} of ${pages}` : '';
+}
 
-  function changePage(dir) {
-    const newPage = currentPage + dir;
-    if (newPage < 1 || newPage > totalPages) return;
-    currentPage = newPage;
-    loadData(document.getElementById('search-input').value);
-  }
+function changePage(dir) {
+  const np = currentPage + dir;
+  if (np < 1 || np > totalPages) return;
+  currentPage = np;
+  loadData(document.getElementById('search-input').value);
+}
 
-  // ────────────────────────────────────────────────────────────
-  // Detail view
-  // ────────────────────────────────────────────────────────────
-  async function openDetail(accountId) {
-    try {
-      const r = await fetch(`${API_BASE}/accounts/${accountId}`);
-      const d = await r.json();
-      document.getElementById('list-view').style.display   = 'none';
-      document.getElementById('detail-view').classList.add('active');
+// ─────────────────────────────────────────────────────────
+// Detail view
+// ─────────────────────────────────────────────────────────
+async function openDetail(accountId) {
+  try {
+    const r = await fetch(`${API}/accounts/${accountId}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
 
-      document.getElementById('detail-content').innerHTML = `
-        <div class="detail-row"><div class="detail-label">Account Name</div><div class="detail-value">${esc(d.account_name)}</div></div>
-        <div class="detail-row"><div class="detail-label">Account ID</div><div class="detail-value">${esc(String(d.account_id))}</div></div>
-        <div class="detail-row"><div class="detail-label">Company ID</div><div class="detail-value">${esc(String(d.company_id ?? ''))}</div></div>`;
+    document.getElementById('list-view').style.display = 'none';
+    document.getElementById('detail-view').classList.add('active');
 
-      const subs = d.subscriptions || [];
-      document.getElementById('detail-sub-count').textContent = subs.length;
-      document.getElementById('detail-subs-body').innerHTML = subs.map(s => `
-        <tr>
+    document.getElementById('detail-content').innerHTML = `
+      <div class="detail-row"><div class="detail-label">Account Name</div><div class="detail-value">${esc(d.account_name ?? '')}</div></div>
+      <div class="detail-row"><div class="detail-label">Account ID</div><div class="detail-value">${esc(String(d.account_id ?? ''))}</div></div>
+      <div class="detail-row"><div class="detail-label">Company ID</div><div class="detail-value">${esc(String(d.company_id ?? ''))}</div></div>`;
+
+    const subs = d.subscriptions || [];
+    document.getElementById('detail-sub-count').textContent = subs.length;
+    document.getElementById('detail-subs-body').innerHTML = subs.length
+      ? subs.map(s => `<tr>
           <td>${esc(s.subscription_name ?? '')}</td>
           <td><code style="font-size:.82rem;">${esc(s.subscription_guid ?? '')}</code></td>
-        </tr>`).join('') || '<tr><td colspan="2" style="color:#888;font-style:italic;">No subscriptions</td></tr>';
-    } catch(e) {
-      console.error('Detail load failed', e);
-    }
+        </tr>`).join('')
+      : '<tr><td colspan="2" style="color:#888;font-style:italic;padding:1rem;">No subscriptions linked.</td></tr>';
+  } catch(e) {
+    console.error('Detail load failed:', e);
   }
+}
 
-  function closeDetail() {
-    document.getElementById('detail-view').classList.remove('active');
-    document.getElementById('list-view').style.display = '';
-  }
+function closeDetail() {
+  document.getElementById('detail-view').classList.remove('active');
+  document.getElementById('list-view').style.display = '';
+}
 
-  // ────────────────────────────────────────────────────────────
-  // Modal 1 — Add New Account & Subscription
-  // ────────────────────────────────────────────────────────────
-  function openAddMappingModal() {
-    clearMappingModal();
-    document.getElementById('add-mapping-overlay').classList.add('open');
-    document.getElementById('input-account-name').focus();
-  }
+// ─────────────────────────────────────────────────────────
+// Modal 1 — Add New Account & Subscription
+// ─────────────────────────────────────────────────────────
+function openAddMappingModal() {
+  resetModal1();
+  document.getElementById('add-mapping-overlay').classList.add('open');
+  document.getElementById('m1-account-name').focus();
+}
+function closeAddMappingModal() {
+  document.getElementById('add-mapping-overlay').classList.remove('open');
+}
+function resetModal1() {
+  ['m1-account-name','m1-company-id','m1-sub-name','m1-sub-guid'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = '';
+    el.classList.remove('error');
+  });
+  ['err-m1-account-name','err-m1-company-id','err-m1-sub-name','err-m1-sub-guid'].forEach(hideErr);
+  hideEl('mapping-api-error');
+  hideEl('mapping-success');
+  setBtn('m1-submit', false, 'Save Mapping');
+  setBtn('m1-cancel', false, 'Cancel');
+}
+async function submitAddMapping() {
+  hideEl('mapping-api-error');
+  hideEl('mapping-success');
+  ['err-m1-account-name','err-m1-company-id','err-m1-sub-name','err-m1-sub-guid'].forEach(hideErr);
+  ['m1-account-name','m1-company-id','m1-sub-name','m1-sub-guid'].forEach(id => document.getElementById(id).classList.remove('error'));
 
-  function closeAddMappingModal() {
-    document.getElementById('add-mapping-overlay').classList.remove('open');
-  }
+  const accountName = document.getElementById('m1-account-name').value.trim();
+  const companyId   = document.getElementById('m1-company-id').value.trim();
+  const subName     = document.getElementById('m1-sub-name').value.trim();
+  const subGuid     = document.getElementById('m1-sub-guid').value.trim();
 
-  function clearMappingModal() {
-    ['input-account-name','input-company-id','input-subscription-name','input-subscription-guid']
-      .forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('error'); });
-    ['err-account-name','err-company-id','err-subscription-name','err-subscription-guid']
-      .forEach(id => hideErr(id));
-    hide('mapping-api-error');
-    hide('mapping-success');
-    enable('modal-submit-btn');
-    document.getElementById('modal-submit-btn').textContent = 'Save Mapping';
-  }
+  let ok = true;
+  if (!accountName) { showErr('err-m1-account-name','Account Name is required.');     markErr('m1-account-name'); ok=false; }
+  if (!companyId)   { showErr('err-m1-company-id','Company ID is required.');          markErr('m1-company-id');   ok=false; }
+  if (!subName)     { showErr('err-m1-sub-name','Subscription Name is required.');     markErr('m1-sub-name');     ok=false; }
+  if (!subGuid)     { showErr('err-m1-sub-guid','Subscription ID is required.');       markErr('m1-sub-guid');     ok=false; }
+  else if (!isGuid(subGuid)) { showErr('err-m1-sub-guid','Must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); markErr('m1-sub-guid'); ok=false; }
+  if (!ok) return;
 
-  async function submitAddMapping() {
-    hide('mapping-api-error');
-    hide('mapping-success');
-    clearMappingErrors();
-
-    const accountName      = document.getElementById('input-account-name').value.trim();
-    const companyId        = document.getElementById('input-company-id').value.trim();
-    const subscriptionName = document.getElementById('input-subscription-name').value.trim();
-    const subscriptionGuid = document.getElementById('input-subscription-guid').value.trim();
-
-    let valid = true;
-    if (!accountName)      { showErr('err-account-name', 'Account Name is required.');       markErr('input-account-name');      valid = false; }
-    if (!companyId)        { showErr('err-company-id',   'Company ID is required.');          markErr('input-company-id');        valid = false; }
-    if (!subscriptionName) { showErr('err-subscription-name','Subscription Name is required.'); markErr('input-subscription-name'); valid = false; }
-    if (!subscriptionGuid) { showErr('err-subscription-guid','Subscription ID is required.'); markErr('input-subscription-guid'); valid = false; }
-    else if (!isValidGuid(subscriptionGuid)) {
-      showErr('err-subscription-guid','Must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
-      markErr('input-subscription-guid'); valid = false;
-    }
-    if (!valid) return;
-
-    disable('modal-submit-btn');
-    document.getElementById('modal-submit-btn').textContent = 'Saving…';
-
-    try {
-      const res = await fetch(`${API_BASE}/create-mapping`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ account_name: accountName, company_id: companyId, subscription_name: subscriptionName, subscription_guid: subscriptionGuid })
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        showApiError('mapping-api-error', body.error || 'An unexpected error occurred.');
-        enable('modal-submit-btn');
-        document.getElementById('modal-submit-btn').textContent = 'Save Mapping';
-        return;
-      }
-      show('mapping-success', `✅ Account and subscription created successfully.`);
-      disable('modal-cancel-btn');
-      document.getElementById('modal-submit-btn').textContent = 'Saved!';
-      loadSummary();
-      loadData(document.getElementById('search-input').value);
-      setTimeout(() => { closeAddMappingModal(); enable('modal-cancel-btn'); }, 1800);
-    } catch(e) {
-      showApiError('mapping-api-error', 'Network error — please try again.');
-      enable('modal-submit-btn');
-      document.getElementById('modal-submit-btn').textContent = 'Save Mapping';
-    }
-  }
-
-  function clearMappingErrors() {
-    ['err-account-name','err-company-id','err-subscription-name','err-subscription-guid'].forEach(id => hideErr(id));
-    ['input-account-name','input-company-id','input-subscription-name','input-subscription-guid'].forEach(id => document.getElementById(id).classList.remove('error'));
-  }
-
-  // ────────────────────────────────────────────────────────────
-  // Modal 2 — Add Subscription to Existing Account
-  // ────────────────────────────────────────────────────────────
-  function openAddSubModal() {
-    clearSubModal();
-    document.getElementById('add-sub-overlay').classList.add('open');
-    document.getElementById('sub-account-search').focus();
-  }
-
-  function closeAddSubModal() {
-    document.getElementById('add-sub-overlay').classList.remove('open');
-    closeAccountDropdown();
-  }
-
-  function clearSubModal() {
-    document.getElementById('sub-account-search').value  = '';
-    document.getElementById('sub-account-search').classList.remove('error');
-    document.getElementById('sub-account-id').value      = '';
-    document.getElementById('sub-subscription-name').value = '';
-    document.getElementById('sub-subscription-name').classList.remove('error');
-    document.getElementById('sub-subscription-guid').value = '';
-    document.getElementById('sub-subscription-guid').classList.remove('error');
-    ['err-sub-account','err-sub-subscription-name','err-sub-subscription-guid'].forEach(id => hideErr(id));
-    hide('sub-api-error');
-    hide('sub-success');
-    enable('sub-submit-btn');
-    document.getElementById('sub-submit-btn').textContent = 'Save Subscription';
-    selectedAccountId = null;
-    acctDropdownItems = [];
-    acctFocusedIndex  = -1;
-    closeAccountDropdown();
-  }
-
-  // Account typeahead
-  function onAccountSearch(value) {
-    selectedAccountId = null;
-    document.getElementById('sub-account-id').value = '';
-    clearTimeout(acctSearchTimeout);
-    if (value.trim().length < 1) { closeAccountDropdown(); return; }
-    acctSearchTimeout = setTimeout(() => fetchAccountSuggestions(value.trim()), 250);
-  }
-
-  async function fetchAccountSuggestions(q) {
-    try {
-      const r = await fetch(`${API_BASE}/accounts/search?q=${encodeURIComponent(q)}`);
-      const d = await r.json();
-      acctDropdownItems = d.accounts || [];
-      acctFocusedIndex  = -1;
-      renderAccountDropdown();
-    } catch(e) {
-      console.error('Account search failed', e);
-    }
-  }
-
-  function renderAccountDropdown() {
-    const dd = document.getElementById('account-dropdown');
-    if (!acctDropdownItems.length) {
-      dd.innerHTML = '<div class="account-option-empty">No accounts found</div>';
-      dd.classList.add('open');
-      return;
-    }
-    dd.innerHTML = acctDropdownItems.map((a, i) => `
-      <div class="account-option" data-index="${i}" data-id="${a.account_id}" data-name="${esc(a.account_name)}"
-           onmousedown="selectAccount(${i})" onmouseover="setFocusedIndex(${i})">
-        ${esc(a.account_name)}
-        <span class="acct-id">ID: ${a.account_id}</span>
-      </div>`).join('');
-    dd.classList.add('open');
-  }
-
-  function onAccountSearchKey(e) {
-    const dd = document.getElementById('account-dropdown');
-    if (!dd.classList.contains('open')) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setFocusedIndex(Math.min(acctFocusedIndex + 1, acctDropdownItems.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFocusedIndex(Math.max(acctFocusedIndex - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (acctFocusedIndex >= 0) selectAccount(acctFocusedIndex);
-    } else if (e.key === 'Escape') {
-      closeAccountDropdown();
-    }
-  }
-
-  function setFocusedIndex(i) {
-    acctFocusedIndex = i;
-    document.querySelectorAll('#account-dropdown .account-option').forEach((el, idx) => {
-      el.classList.toggle('focused', idx === i);
+  setBtn('m1-submit', true, 'Saving…');
+  try {
+    const res  = await fetch(`${API}/create-mapping`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ account_name:accountName, company_id:companyId, subscription_name:subName, subscription_guid:subGuid })
     });
+    const body = await res.json();
+    if (!res.ok) { showApiErr('mapping-api-error', body.error || 'Unexpected error.'); setBtn('m1-submit',false,'Save Mapping'); return; }
+    showEl('mapping-success', '✅ Account and subscription created successfully.');
+    setBtn('m1-cancel', true, 'Cancel');
+    setBtn('m1-submit', true, 'Saved!');
+    loadSummary();
+    loadData(document.getElementById('search-input').value);
+    setTimeout(() => { closeAddMappingModal(); setBtn('m1-cancel',false,'Cancel'); }, 1800);
+  } catch(e) {
+    showApiErr('mapping-api-error','Network error — please try again.');
+    setBtn('m1-submit',false,'Save Mapping');
   }
+}
 
-  function selectAccount(index) {
-    const acct = acctDropdownItems[index];
-    if (!acct) return;
-    selectedAccountId = acct.account_id;
-    document.getElementById('sub-account-id').value      = acct.account_id;
-    document.getElementById('sub-account-search').value  = acct.account_name;
-    document.getElementById('sub-account-search').classList.remove('error');
-    hideErr('err-sub-account');
-    closeAccountDropdown();
+// ─────────────────────────────────────────────────────────
+// Modal 2 — Add Subscription to Existing Account
+// ─────────────────────────────────────────────────────────
+function openAddSubModal() {
+  resetModal2();
+  document.getElementById('add-sub-overlay').classList.add('open');
+  document.getElementById('m2-account-search').focus();
+}
+function closeAddSubModal() {
+  document.getElementById('add-sub-overlay').classList.remove('open');
+  closeAccountDropdown();
+}
+function resetModal2() {
+  document.getElementById('m2-account-search').value = '';
+  document.getElementById('m2-account-search').classList.remove('error');
+  document.getElementById('m2-account-id').value = '';
+  ['m2-sub-name','m2-sub-guid'].forEach(id => { document.getElementById(id).value=''; document.getElementById(id).classList.remove('error'); });
+  ['err-m2-account','err-m2-sub-name','err-m2-sub-guid'].forEach(hideErr);
+  hideEl('sub-api-error');
+  hideEl('sub-success');
+  setBtn('m2-submit',false,'Save Subscription');
+  setBtn('m2-cancel',false,'Cancel');
+  selectedAcctId = null;
+  acctItems      = [];
+  acctFocusIdx   = -1;
+  closeAccountDropdown();
+}
+
+// ── Account typeahead ──
+function onAccountSearch(val) {
+  selectedAcctId = null;
+  document.getElementById('m2-account-id').value = '';
+  clearTimeout(acctTimer);
+  if (!val.trim()) { closeAccountDropdown(); return; }
+  acctTimer = setTimeout(() => fetchAccounts(val.trim()), 250);
+}
+
+async function fetchAccounts(q) {
+  try {
+    const r = await fetch(`${API}/accounts/search?q=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    acctItems    = d.accounts || [];
+    acctFocusIdx = -1;
+    renderDropdown();
+  } catch(e) {
+    console.error('Account search failed:', e);
+    acctItems = [];
+    renderDropdown();
   }
+}
 
-  function closeAccountDropdown() {
-    document.getElementById('account-dropdown').classList.remove('open');
+function renderDropdown() {
+  const dd = document.getElementById('account-dropdown');
+  if (!acctItems.length) {
+    dd.innerHTML = '<div class="account-option-empty">No accounts found</div>';
+  } else {
+    dd.innerHTML = acctItems.map((a,i) => `
+      <div class="account-option" data-index="${i}"
+           onmousedown="selectAccount(${i})"
+           onmouseover="setFocusIdx(${i})">
+        ${esc(a.account_name)}
+        <span class="acct-meta">ID: ${a.account_id} &nbsp;|&nbsp; ${esc(String(a.company_id ?? ''))}</span>
+      </div>`).join('');
   }
+  dd.classList.add('open');
+}
 
-  async function submitAddSubscription() {
-    hide('sub-api-error');
-    hide('sub-success');
+function onAccountSearchKey(e) {
+  const dd = document.getElementById('account-dropdown');
+  if (!dd.classList.contains('open')) return;
+  if (e.key === 'ArrowDown')  { e.preventDefault(); setFocusIdx(Math.min(acctFocusIdx+1, acctItems.length-1)); }
+  else if (e.key === 'ArrowUp')   { e.preventDefault(); setFocusIdx(Math.max(acctFocusIdx-1, 0)); }
+  else if (e.key === 'Enter')     { e.preventDefault(); if (acctFocusIdx >= 0) selectAccount(acctFocusIdx); }
+  else if (e.key === 'Escape')    { closeAccountDropdown(); }
+}
 
-    const accountId        = document.getElementById('sub-account-id').value.trim();
-    const accountSearchVal = document.getElementById('sub-account-search').value.trim();
-    const subscriptionName = document.getElementById('sub-subscription-name').value.trim();
-    const subscriptionGuid = document.getElementById('sub-subscription-guid').value.trim();
+function setFocusIdx(i) {
+  acctFocusIdx = i;
+  document.querySelectorAll('#account-dropdown .account-option').forEach((el,idx) =>
+    el.classList.toggle('focused', idx === i));
+}
 
-    let valid = true;
-    ['err-sub-account','err-sub-subscription-name','err-sub-subscription-guid'].forEach(id => hideErr(id));
-    ['sub-account-search','sub-subscription-name','sub-subscription-guid'].forEach(id => document.getElementById(id).classList.remove('error'));
+function selectAccount(i) {
+  const a = acctItems[i];
+  if (!a) return;
+  selectedAcctId = a.account_id;
+  document.getElementById('m2-account-id').value     = a.account_id;
+  document.getElementById('m2-account-search').value = a.account_name;
+  document.getElementById('m2-account-search').classList.remove('error');
+  hideErr('err-m2-account');
+  closeAccountDropdown();
+}
 
-    if (!accountId || !accountSearchVal) {
-      showErr('err-sub-account', 'Please search for and select an account.');
-      markErr('sub-account-search'); valid = false;
-    }
-    if (!subscriptionName) {
-      showErr('err-sub-subscription-name', 'Subscription Name is required.');
-      markErr('sub-subscription-name'); valid = false;
-    }
-    if (!subscriptionGuid) {
-      showErr('err-sub-subscription-guid', 'Subscription ID is required.');
-      markErr('sub-subscription-guid'); valid = false;
-    } else if (!isValidGuid(subscriptionGuid)) {
-      showErr('err-sub-subscription-guid', 'Must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
-      markErr('sub-subscription-guid'); valid = false;
-    }
-    if (!valid) return;
+function closeAccountDropdown() {
+  document.getElementById('account-dropdown').classList.remove('open');
+}
 
-    disable('sub-submit-btn');
-    document.getElementById('sub-submit-btn').textContent = 'Saving…';
+async function submitAddSubscription() {
+  hideEl('sub-api-error');
+  hideEl('sub-success');
+  ['err-m2-account','err-m2-sub-name','err-m2-sub-guid'].forEach(hideErr);
+  ['m2-account-search','m2-sub-name','m2-sub-guid'].forEach(id => document.getElementById(id).classList.remove('error'));
 
-    try {
-      const res = await fetch(`${API_BASE}/add-subscription`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ account_id: parseInt(accountId, 10), subscription_name: subscriptionName, subscription_guid: subscriptionGuid })
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        showApiError('sub-api-error', body.error || 'An unexpected error occurred.');
-        enable('sub-submit-btn');
-        document.getElementById('sub-submit-btn').textContent = 'Save Subscription';
-        return;
-      }
-      show('sub-success', `✅ Subscription added successfully to account.`);
-      disable('sub-cancel-btn');
-      document.getElementById('sub-submit-btn').textContent = 'Saved!';
-      loadSummary();
-      loadData(document.getElementById('search-input').value);
-      setTimeout(() => { closeAddSubModal(); enable('sub-cancel-btn'); }, 1800);
-    } catch(e) {
-      showApiError('sub-api-error', 'Network error — please try again.');
-      enable('sub-submit-btn');
-      document.getElementById('sub-submit-btn').textContent = 'Save Subscription';
-    }
+  const accountId = document.getElementById('m2-account-id').value.trim();
+  const acctLabel = document.getElementById('m2-account-search').value.trim();
+  const subName   = document.getElementById('m2-sub-name').value.trim();
+  const subGuid   = document.getElementById('m2-sub-guid').value.trim();
+
+  let ok = true;
+  if (!accountId || !acctLabel) { showErr('err-m2-account','Please search for and select an account.'); markErr('m2-account-search'); ok=false; }
+  if (!subName)  { showErr('err-m2-sub-name','Subscription Name is required.');  markErr('m2-sub-name');  ok=false; }
+  if (!subGuid)  { showErr('err-m2-sub-guid','Subscription ID is required.');    markErr('m2-sub-guid');  ok=false; }
+  else if (!isGuid(subGuid)) { showErr('err-m2-sub-guid','Must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); markErr('m2-sub-guid'); ok=false; }
+  if (!ok) return;
+
+  setBtn('m2-submit',true,'Saving…');
+  try {
+    const res  = await fetch(`${API}/add-subscription`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ account_id:parseInt(accountId,10), subscription_name:subName, subscription_guid:subGuid })
+    });
+    const body = await res.json();
+    if (!res.ok) { showApiErr('sub-api-error', body.error || 'Unexpected error.'); setBtn('m2-submit',false,'Save Subscription'); return; }
+    showEl('sub-success','✅ Subscription added successfully.');
+    setBtn('m2-cancel',true,'Cancel');
+    setBtn('m2-submit',true,'Saved!');
+    loadSummary();
+    loadData(document.getElementById('search-input').value);
+    setTimeout(() => { closeAddSubModal(); setBtn('m2-cancel',false,'Cancel'); }, 1800);
+  } catch(e) {
+    showApiErr('sub-api-error','Network error — please try again.');
+    setBtn('m2-submit',false,'Save Subscription');
   }
+}
 
-  // ────────────────────────────────────────────────────────────
-  // Helpers
-  // ────────────────────────────────────────────────────────────
-  function isValidGuid(v) {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
-  }
-  function esc(s) {
-    return String(s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
-  }
-  function showErr(id, msg)  { const el = document.getElementById(id); el.textContent = msg; el.classList.add('visible'); }
-  function hideErr(id)        { const el = document.getElementById(id); if(el){ el.textContent=''; el.classList.remove('visible'); } }
-  function markErr(id)        { document.getElementById(id)?.classList.add('error'); }
-  function show(id, msg)      { const el = document.getElementById(id); if(el){ if(msg) el.textContent = msg; el.style.display='block'; el.classList.add('visible'); } }
-  function hide(id)           { const el = document.getElementById(id); if(el){ el.style.display='none'; el.classList.remove('visible'); } }
-  function showApiError(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display='block'; el.classList.add('visible'); }
-  function enable(id)  { const el=document.getElementById(id); if(el){ el.disabled=false; } }
-  function disable(id) { const el=document.getElementById(id); if(el){ el.disabled=true;  } }
+// ─────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────
+const isGuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+const esc    = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-  function showToast(msg, type='') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast' + (type ? ` ${type}` : '');
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3500);
-  }
+function showErr(id, msg)  { const e=document.getElementById(id); if(e){e.textContent=msg; e.classList.add('visible');} }
+function hideErr(id)        { const e=document.getElementById(id); if(e){e.textContent=''; e.classList.remove('visible');} }
+function markErr(id)        { document.getElementById(id)?.classList.add('error'); }
+function showEl(id, msg)    { const e=document.getElementById(id); if(e){if(msg)e.textContent=msg; e.style.display='block'; e.classList.add('visible');} }
+function hideEl(id)         { const e=document.getElementById(id); if(e){e.style.display='none'; e.classList.remove('visible');} }
+function showApiErr(id,msg) { const e=document.getElementById(id); if(e){e.textContent=msg; e.style.display='block'; e.classList.add('visible');} }
+function setBtn(id,dis,lbl) { const e=document.getElementById(id); if(e){e.disabled=dis; if(lbl)e.textContent=lbl;} }
 </script>
 </body>
 </html>

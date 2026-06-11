@@ -1,9 +1,9 @@
 import { app } from '@azure/functions';
 import sql from 'mssql';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Database connection
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Database connection pool
+// ─────────────────────────────────────────────────────────────
 const getConnectionString = () => process.env.AzureSQLConnectionString;
 
 let pool = null;
@@ -21,136 +21,174 @@ const getPool = async () => {
   return pool;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function getPagination(request) {
-  const page     = Math.max(1, parseInt(request.query.get('page')      || '1',  10));
-  const pageSize = Math.min(200, Math.max(1, parseInt(request.query.get('page_size') || '50', 10)));
+// ─────────────────────────────────────────────────────────────
+// Pagination helper
+// ─────────────────────────────────────────────────────────────
+const getPagination = (request) => {
+  const page     = Math.max(1, parseInt(request.query.get('page')  || '1',  10));
+  const pageSize = Math.max(1, parseInt(request.query.get('limit') || '25', 10));
   const offset   = (page - 1) * pageSize;
   return { page, pageSize, offset };
-}
+};
 
-function jsonResponse(status, body) {
-  return {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  };
-}
+// ─────────────────────────────────────────────────────────────
+// GUID validation helper
+// ─────────────────────────────────────────────────────────────
+const isValidGuid = (v) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Health check
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// GET /api/health
+// ─────────────────────────────────────────────────────────────
 app.http('health', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  handler: async () => ({
-    status: 200,
-    headers: { 'Content-Type': 'text/plain' },
-    body: 'API is running'
-  })
+  handler: async (request, context) => {
+    return {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'API is running'
+    };
+  }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // GET /api/summary
-// Returns counts for all four dashboard cards
-// ─────────────────────────────────────────────────────────────────────────────
+// FIX: was only returning total_accounts.
+//      Now returns all four dashboard card values.
+//      FIX: table names use dbo schema prefix.
+//      FIX: response keys match exactly what index.html reads:
+//           totalAccounts, mappedSubscriptions,
+//           unknownSubscriptions, accountsWithMultipleSubs
+// ─────────────────────────────────────────────────────────────
 app.http('summary', {
   methods: ['GET'],
   authLevel: 'anonymous',
   handler: async (request, context) => {
     try {
-      const db     = await getPool();
-      const result = await db.request().query(`
+      const pool = await getPool();
+      const result = await pool.request().query(`
         SELECT
-          (SELECT COUNT(*) FROM dbo.accounts)              AS total_accounts,
-          (SELECT COUNT(*) FROM dbo.subscriptions)         AS total_subscriptions,
-          (SELECT COUNT(*) FROM dbo.subscriptions_unknown) AS total_unknown,
+          (SELECT COUNT(*) FROM dbo.accounts)                AS totalAccounts,
+          (SELECT COUNT(*) FROM dbo.subscriptions)           AS mappedSubscriptions,
+          (SELECT COUNT(*) FROM dbo.subscriptions_unknown)   AS unknownSubscriptions,
           (SELECT COUNT(*) FROM (
               SELECT account_id
               FROM dbo.subscriptions
               GROUP BY account_id
               HAVING COUNT(*) >= 2
-          ) m)                                             AS accounts_with_multiple_subscriptions
+          ) m)                                               AS accountsWithMultipleSubs
       `);
-      return jsonResponse(200, result.recordset[0]);
-    } catch (err) {
-      context.error('Summary error:', err);
-      return jsonResponse(500, { error: err.message });
+
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result.recordset[0])
+      };
+    } catch (error) {
+      context.error('Summary error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: error.message })
+      };
     }
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/accounts  — paginated + searchable
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// GET /api/accounts?page=&limit=&search=
+// FIX: column is [name] not account_name — aliased as account_name
+//      for frontend consistency.
+//      FIX: response wraps in { data, total, page, totalPages }
+//           to match what index.html expects.
+// ─────────────────────────────────────────────────────────────
 app.http('accounts', {
   methods: ['GET'],
   authLevel: 'anonymous',
   handler: async (request, context) => {
     try {
-      const db                    = await getPool();
+      const pool = await getPool();
       const { page, pageSize, offset } = getPagination(request);
-      const search                = request.query.get('search') || '';
+      const search = (request.query.get('search') || '').trim();
 
-      const whereClause = search ? `WHERE a.[name] LIKE @search` : '';
+      const countReq = pool.request();
+      const dataReq  = pool.request();
 
-      const countResult = await db.request()
-        .input('search', sql.NVarChar, `%${search}%`)
-        .query(`SELECT COUNT(*) AS total FROM dbo.accounts a ${whereClause}`);
+      let countQuery = `SELECT COUNT(*) AS total FROM dbo.accounts`;
+      let dataQuery  = `
+        SELECT
+          a.account_id,
+          a.[name]       AS account_name,
+          a.company_id,
+          COUNT(s.subscription_id) AS subscription_count
+        FROM dbo.accounts a
+        LEFT JOIN dbo.subscriptions s ON a.account_id = s.account_id
+      `;
 
-      const dataResult = await db.request()
-        .input('search',   sql.NVarChar, `%${search}%`)
-        .input('offset',   sql.Int,      offset)
-        .input('pageSize', sql.Int,      pageSize)
-        .query(`
-          SELECT
-            a.account_id,
-            a.[name]     AS account_name,
-            a.company_id,
-            COUNT(s.subscription_id) AS subscription_count
-          FROM dbo.accounts a
-          LEFT JOIN dbo.subscriptions s ON a.account_id = s.account_id
-          ${whereClause}
-          GROUP BY a.account_id, a.[name], a.company_id
-          ORDER BY a.[name]
-          OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
-        `);
+      if (search) {
+        countQuery += ` WHERE [name] LIKE @search`;
+        dataQuery  += ` WHERE a.[name] LIKE @search`;
+        countReq.input('search', sql.NVarChar, `%${search}%`);
+        dataReq.input('search',  sql.NVarChar, `%${search}%`);
+      }
 
-      const total = countResult.recordset[0].total;
-      return jsonResponse(200, {
-        data: dataResult.recordset,
-        pagination: {
+      dataQuery += `
+        GROUP BY a.account_id, a.[name], a.company_id
+        ORDER BY a.[name]
+        OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+      `;
+
+      dataReq.input('offset',   sql.Int, offset);
+      dataReq.input('pageSize', sql.Int, pageSize);
+
+      const countResult = await countReq.query(countQuery);
+      const dataResult  = await dataReq.query(dataQuery);
+      const total       = countResult.recordset[0].total;
+
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data:       dataResult.recordset,
+          total,
           page,
-          page_size:    pageSize,
-          total_records: total,
-          total_pages:  Math.ceil(total / pageSize)
-        }
-      });
-    } catch (err) {
-      context.error('Accounts error:', err);
-      return jsonResponse(500, { error: err.message });
+          totalPages: Math.ceil(total / pageSize)
+        })
+      };
+    } catch (error) {
+      context.error('Accounts error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: error.message })
+      };
     }
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/accounts/{accountId}  — single account + its subscriptions
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// GET /api/accounts/{accountId}   — account detail
+// FIX: column is [name] not account_name — aliased as account_name
+// ─────────────────────────────────────────────────────────────
 app.http('account-detail', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'accounts/{accountId}',
   handler: async (request, context) => {
     try {
-      const db        = await getPool();
+      const pool      = await getPool();
       const accountId = parseInt(request.params.accountId, 10);
-      if (isNaN(accountId)) return jsonResponse(400, { error: 'Invalid accountId' });
 
-      const accountResult = await db.request()
+      if (isNaN(accountId)) {
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Invalid account ID.' })
+        };
+      }
+
+      const accountResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
           SELECT account_id, [name] AS account_name, company_id
@@ -158,10 +196,15 @@ app.http('account-detail', {
           WHERE account_id = @accountId
         `);
 
-      if (accountResult.recordset.length === 0)
-        return jsonResponse(404, { error: 'Account not found' });
+      if (!accountResult.recordset.length) {
+        return {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Account not found.' })
+        };
+      }
 
-      const subsResult = await db.request()
+      const subsResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
           SELECT subscription_id, subscription_name, subscription_guid
@@ -170,313 +213,471 @@ app.http('account-detail', {
           ORDER BY subscription_name
         `);
 
-      return jsonResponse(200, {
-        account:       accountResult.recordset[0],
-        subscriptions: subsResult.recordset
-      });
-    } catch (err) {
-      context.error('Account detail error:', err);
-      return jsonResponse(500, { error: err.message });
+      const account = accountResult.recordset[0];
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account_id:    account.account_id,
+          account_name:  account.account_name,
+          company_id:    account.company_id,
+          subscriptions: subsResult.recordset
+        })
+      };
+    } catch (error) {
+      context.error('Account detail error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: error.message })
+      };
     }
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/subscriptions  — paginated + searchable
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// GET /api/subscriptions?page=&limit=&search=
+// FIX: JOIN uses a.[name] AS account_name (not account_name column)
+//      FIX: response wraps in { data, total, page, totalPages }
+// ─────────────────────────────────────────────────────────────
 app.http('subscriptions-list', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'subscriptions',
   handler: async (request, context) => {
     try {
-      const db                    = await getPool();
+      const pool = await getPool();
       const { page, pageSize, offset } = getPagination(request);
-      const search                = request.query.get('search') || '';
+      const search = (request.query.get('search') || '').trim();
 
-      const whereClause = search
-        ? `WHERE (s.subscription_name LIKE @search OR a.[name] LIKE @search)`
-        : '';
+      const countReq = pool.request();
+      const dataReq  = pool.request();
 
-      const countResult = await db.request()
-        .input('search', sql.NVarChar, `%${search}%`)
-        .query(`
-          SELECT COUNT(*) AS total
-          FROM dbo.subscriptions s
-          LEFT JOIN dbo.accounts a ON s.account_id = a.account_id
-          ${whereClause}
-        `);
+      let countQuery = `
+        SELECT COUNT(*) AS total
+        FROM dbo.subscriptions s
+        LEFT JOIN dbo.accounts a ON s.account_id = a.account_id
+      `;
+      let dataQuery = `
+        SELECT
+          s.subscription_id,
+          s.subscription_name,
+          s.subscription_guid,
+          s.account_id,
+          a.[name]     AS account_name,
+          a.company_id
+        FROM dbo.subscriptions s
+        LEFT JOIN dbo.accounts a ON s.account_id = a.account_id
+      `;
 
-      const dataResult = await db.request()
-        .input('search',   sql.NVarChar, `%${search}%`)
-        .input('offset',   sql.Int,      offset)
-        .input('pageSize', sql.Int,      pageSize)
-        .query(`
-          SELECT
-            s.subscription_id,
-            s.subscription_name,
-            s.subscription_guid,
-            s.account_id,
-            a.[name]     AS account_name,
-            a.company_id
-          FROM dbo.subscriptions s
-          LEFT JOIN dbo.accounts a ON s.account_id = a.account_id
-          ${whereClause}
-          ORDER BY s.subscription_name
-          OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
-        `);
+      if (search) {
+        const whereClause = `
+          WHERE (s.subscription_name LIKE @search
+              OR a.[name]            LIKE @search
+              OR a.company_id        LIKE @search)
+        `;
+        countQuery += whereClause;
+        dataQuery  += whereClause;
+        countReq.input('search', sql.NVarChar, `%${search}%`);
+        dataReq.input('search',  sql.NVarChar, `%${search}%`);
+      }
 
-      const total = countResult.recordset[0].total;
-      return jsonResponse(200, {
-        data: dataResult.recordset,
-        pagination: {
+      dataQuery += `
+        ORDER BY s.subscription_name
+        OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+      `;
+
+      dataReq.input('offset',   sql.Int, offset);
+      dataReq.input('pageSize', sql.Int, pageSize);
+
+      const countResult = await countReq.query(countQuery);
+      const dataResult  = await dataReq.query(dataQuery);
+      const total       = countResult.recordset[0].total;
+
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data:       dataResult.recordset,
+          total,
           page,
-          page_size:     pageSize,
-          total_records: total,
-          total_pages:   Math.ceil(total / pageSize)
-        }
-      });
-    } catch (err) {
-      context.error('Subscriptions error:', err);
-      return jsonResponse(500, { error: err.message });
+          totalPages: Math.ceil(total / pageSize)
+        })
+      };
+    } catch (error) {
+      context.error('Subscriptions error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: error.message })
+      };
     }
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/unknown  — paginated list of dbo.subscriptions_unknown
-// ─────────────────────────────────────────────────────────────────────────────
-app.http('unknown', {
+// ─────────────────────────────────────────────────────────────
+// GET /api/unknown-subscriptions?page=&limit=&search=
+// FIX: was querying dbo.subscriptions WHERE guid IS NULL — WRONG.
+//      Your schema has a dedicated dbo.subscriptions_unknown table
+//      with columns: id, subscription_name, subscription_guid
+//      FIX: route name changed to 'unknown-subscriptions' to match
+//           what index.html fetches (/api/unknown-subscriptions)
+//      FIX: response wraps in { data, total, page, totalPages }
+// ─────────────────────────────────────────────────────────────
+app.http('unknown-subscriptions', {
   methods: ['GET'],
   authLevel: 'anonymous',
+  route: 'unknown-subscriptions',
   handler: async (request, context) => {
     try {
-      const db                    = await getPool();
+      const pool = await getPool();
       const { page, pageSize, offset } = getPagination(request);
+      const search = (request.query.get('search') || '').trim();
 
-      const countResult = await db.request()
-        .query(`SELECT COUNT(*) AS total FROM dbo.subscriptions_unknown`);
+      const countReq = pool.request();
+      const dataReq  = pool.request();
 
-      const dataResult = await db.request()
-        .input('offset',   sql.Int, offset)
-        .input('pageSize', sql.Int, pageSize)
-        .query(`
-          SELECT id, subscription_name, subscription_guid
-          FROM dbo.subscriptions_unknown
-          ORDER BY subscription_name
-          OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
-        `);
+      let countQuery = `SELECT COUNT(*) AS total FROM dbo.subscriptions_unknown`;
+      let dataQuery  = `
+        SELECT id, subscription_name, subscription_guid
+        FROM dbo.subscriptions_unknown
+      `;
 
-      const total = countResult.recordset[0].total;
-      return jsonResponse(200, {
-        data: dataResult.recordset,
-        pagination: {
+      if (search) {
+        const whereClause = `
+          WHERE (subscription_name LIKE @search
+              OR subscription_guid LIKE @search)
+        `;
+        countQuery += whereClause;
+        dataQuery  += whereClause;
+        countReq.input('search', sql.NVarChar, `%${search}%`);
+        dataReq.input('search',  sql.NVarChar, `%${search}%`);
+      }
+
+      dataQuery += `
+        ORDER BY subscription_name
+        OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+      `;
+
+      dataReq.input('offset',   sql.Int, offset);
+      dataReq.input('pageSize', sql.Int, pageSize);
+
+      const countResult = await countReq.query(countQuery);
+      const dataResult  = await dataReq.query(dataQuery);
+      const total       = countResult.recordset[0].total;
+
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data:       dataResult.recordset,
+          total,
           page,
-          page_size:     pageSize,
-          total_records: total,
-          total_pages:   Math.ceil(total / pageSize)
-        }
-      });
-    } catch (err) {
-      context.error('Unknown error:', err);
-      return jsonResponse(500, { error: err.message });
+          totalPages: Math.ceil(total / pageSize)
+        })
+      };
+    } catch (error) {
+      context.error('Unknown subscriptions error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: error.message })
+      };
     }
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// GET /api/accounts/search?q=<term>
+// Typeahead for Modal 2 — Add Subscription to Existing Account
+// FIX: column is [name] not account_name — aliased as account_name
+// ─────────────────────────────────────────────────────────────
+app.http('accounts-search', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'accounts/search',
+  handler: async (request, context) => {
+    try {
+      const q = (request.query.get('q') || '').trim();
+      if (!q) {
+        return {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accounts: [] })
+        };
+      }
+
+      const pool = await getPool();
+      const result = await pool.request()
+        .input('q', sql.NVarChar, `%${q}%`)
+        .query(`
+          SELECT TOP 20
+            account_id,
+            [name] AS account_name,
+            company_id
+          FROM dbo.accounts
+          WHERE [name] LIKE @q
+          ORDER BY [name]
+        `);
+
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accounts: result.recordset })
+      };
+    } catch (error) {
+      context.error('Account search error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: error.message })
+      };
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // POST /api/create-mapping
-// Phase 1: Creates a NEW account + its FIRST subscription in one transaction
-// ─────────────────────────────────────────────────────────────────────────────
+// Phase 1: Create a brand-new account AND its first subscription
+// Blocks: duplicate account name, duplicate company_id,
+//         duplicate subscription_guid
+// ─────────────────────────────────────────────────────────────
 app.http('create-mapping', {
   methods: ['POST'],
   authLevel: 'anonymous',
   handler: async (request, context) => {
     try {
       const body = await request.json();
-      const { account_name, company_id, subscription_name, subscription_guid } = body;
+      const { account_name, company_id, subscription_name, subscription_guid } = body || {};
 
-      // ── Field presence validation ──────────────────────────────────────────
+      // ── Input validation ──
       const missing = [];
-      if (!account_name?.trim())       missing.push('account_name');
-      if (!company_id?.trim())         missing.push('company_id');
-      if (!subscription_name?.trim())  missing.push('subscription_name');
-      if (!subscription_guid?.trim())  missing.push('subscription_guid');
-      if (missing.length)
-        return jsonResponse(400, { error: `Missing required fields: ${missing.join(', ')}` });
+      if (!account_name?.trim())      missing.push('account_name');
+      if (!company_id?.trim())        missing.push('company_id');
+      if (!subscription_name?.trim()) missing.push('subscription_name');
+      if (!subscription_guid?.trim()) missing.push('subscription_guid');
 
-      // ── GUID format validation ─────────────────────────────────────────────
-      if (!GUID_RE.test(subscription_guid.trim()))
-        return jsonResponse(400, {
-          error: 'subscription_guid must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-        });
+      if (missing.length) {
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: `Missing required fields: ${missing.join(', ')}` })
+        };
+      }
 
-      // ── Length validation ──────────────────────────────────────────────────
-      if (account_name.trim().length    > 255) return jsonResponse(400, { error: 'account_name exceeds 255 characters' });
-      if (company_id.trim().length      > 100) return jsonResponse(400, { error: 'company_id exceeds 100 characters' });
-      if (subscription_name.trim().length > 255) return jsonResponse(400, { error: 'subscription_name exceeds 255 characters' });
+      if (!isValidGuid(subscription_guid.trim())) {
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'subscription_guid must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' })
+        };
+      }
 
-      const db = await getPool();
+      const acctName = account_name.trim();
+      const compId   = company_id.trim();
+      const subName  = subscription_name.trim();
+      const subGuid  = subscription_guid.trim().toLowerCase();
 
-      // ── Duplicate checks ───────────────────────────────────────────────────
-      const dupAccount = await db.request()
-        .input('account_name', sql.NVarChar(255), account_name.trim())
-        .query(`SELECT 1 FROM dbo.accounts WHERE [name] = @account_name`);
-      if (dupAccount.recordset.length)
-        return jsonResponse(409, { error: `An account named "${account_name.trim()}" already exists.` });
+      const pool = await getPool();
 
-      const dupCompany = await db.request()
-        .input('company_id', sql.NVarChar(100), company_id.trim())
-        .query(`SELECT 1 FROM dbo.accounts WHERE company_id = @company_id`);
-      if (dupCompany.recordset.length)
-        return jsonResponse(409, { error: `Company ID "${company_id.trim()}" is already assigned to another account.` });
+      // ── Duplicate checks ──
+      const dupAcctName = await pool.request()
+        .input('name', sql.NVarChar, acctName)
+        .query(`SELECT account_id FROM dbo.accounts WHERE [name] = @name`);
+      if (dupAcctName.recordset.length > 0) {
+        return {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: `An account named "${acctName}" already exists.` })
+        };
+      }
 
-      const dupGuid = await db.request()
-        .input('subscription_guid', sql.UniqueIdentifier, subscription_guid.trim())
-        .query(`SELECT 1 FROM dbo.subscriptions WHERE subscription_guid = @subscription_guid`);
-      if (dupGuid.recordset.length)
-        return jsonResponse(409, { error: `Subscription GUID "${subscription_guid.trim()}" already exists.` });
+      const dupCompId = await pool.request()
+        .input('company_id', sql.NVarChar, compId)
+        .query(`SELECT account_id FROM dbo.accounts WHERE company_id = @company_id`);
+      if (dupCompId.recordset.length > 0) {
+        return {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: `Company ID "${compId}" is already assigned to another account.` })
+        };
+      }
 
-      // ── Transactional insert ───────────────────────────────────────────────
-      const insertResult = await db.request()
-        .input('account_name',       sql.NVarChar(255),    account_name.trim())
-        .input('company_id',         sql.NVarChar(100),    company_id.trim())
-        .input('subscription_name',  sql.NVarChar(255),    subscription_name.trim())
-        .input('subscription_guid',  sql.UniqueIdentifier, subscription_guid.trim())
-        .query(`
-          BEGIN TRAN;
+      const dupGuid = await pool.request()
+        .input('guid', sql.NVarChar, subGuid)
+        .query(`SELECT subscription_id FROM dbo.subscriptions WHERE subscription_guid = @guid`);
+      if (dupGuid.recordset.length > 0) {
+        return {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: `Subscription GUID "${subGuid}" already exists.` })
+        };
+      }
 
+      // ── Transactional insert ──
+      const transaction = new sql.Transaction(pool);
+      await transaction.begin();
+      try {
+        const insertAcct = await new sql.Request(transaction)
+          .input('name',       sql.NVarChar, acctName)
+          .input('company_id', sql.NVarChar, compId)
+          .query(`
             INSERT INTO dbo.accounts ([name], company_id)
-            VALUES (@account_name, @company_id);
+            VALUES (@name, @company_id);
+            SELECT SCOPE_IDENTITY() AS account_id;
+          `);
 
-            DECLARE @new_account_id INT = SCOPE_IDENTITY();
+        const newAccountId = insertAcct.recordset[0].account_id;
 
+        await new sql.Request(transaction)
+          .input('account_id',        sql.Int,      newAccountId)
+          .input('subscription_name', sql.NVarChar, subName)
+          .input('subscription_guid', sql.NVarChar, subGuid)
+          .query(`
             INSERT INTO dbo.subscriptions (account_id, subscription_name, subscription_guid)
-            VALUES (@new_account_id, @subscription_name, @subscription_guid);
+            VALUES (@account_id, @subscription_name, @subscription_guid);
+          `);
 
-          COMMIT TRAN;
+        await transaction.commit();
 
-          SELECT @new_account_id AS new_account_id;
-        `);
-
-      const newAccountId = insertResult.recordset[0]?.new_account_id;
-      context.log(`Created account ${newAccountId} with subscription ${subscription_guid.trim()}`);
-
-      return jsonResponse(201, {
-        message:        'Account and subscription created successfully.',
-        new_account_id: newAccountId
-      });
-
-    } catch (err) {
-      context.error('create-mapping error:', err);
-      return jsonResponse(500, { error: err.message });
+        return {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message:    'Account and subscription created successfully.',
+            account_id: newAccountId,
+            account_name: acctName,
+            company_id:   compId,
+            subscription_name: subName,
+            subscription_guid: subGuid
+          })
+        };
+      } catch (txErr) {
+        await transaction.rollback();
+        throw txErr;
+      }
+    } catch (error) {
+      context.error('Create mapping error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Database error. Please try again.' })
+      };
     }
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/accounts-list
-// Phase 2: Returns a lightweight list of all accounts for the dropdown
-// (account_id + name only — used by the "Add Subscription to Existing Account" modal)
-// ─────────────────────────────────────────────────────────────────────────────
-app.http('accounts-list', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  handler: async (request, context) => {
-    try {
-      const db     = await getPool();
-      const search = request.query.get('search') || '';
-
-      const result = await db.request()
-        .input('search', sql.NVarChar, `%${search}%`)
-        .query(`
-          SELECT account_id, [name] AS account_name, company_id
-          FROM dbo.accounts
-          ${search ? 'WHERE [name] LIKE @search' : ''}
-          ORDER BY [name]
-        `);
-
-      return jsonResponse(200, { data: result.recordset });
-    } catch (err) {
-      context.error('accounts-list error:', err);
-      return jsonResponse(500, { error: err.message });
-    }
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // POST /api/add-subscription
-// Phase 2: Adds a new subscription to an EXISTING account
-// ─────────────────────────────────────────────────────────────────────────────
+// Phase 2: Add a subscription to an EXISTING account
+// Requires: account_id (integer), subscription_name, subscription_guid
+// Blocks: account not found, duplicate subscription_guid
+// ─────────────────────────────────────────────────────────────
 app.http('add-subscription', {
   methods: ['POST'],
   authLevel: 'anonymous',
   handler: async (request, context) => {
     try {
       const body = await request.json();
-      const { account_id, subscription_name, subscription_guid } = body;
+      const { account_id, subscription_name, subscription_guid } = body || {};
 
-      // ── Field presence validation ──────────────────────────────────────────
-      const missing = [];
-      if (!account_id)                 missing.push('account_id');
-      if (!subscription_name?.trim())  missing.push('subscription_name');
-      if (!subscription_guid?.trim())  missing.push('subscription_guid');
-      if (missing.length)
-        return jsonResponse(400, { error: `Missing required fields: ${missing.join(', ')}` });
+      // ── Input validation ──
+      if (!account_id || isNaN(parseInt(account_id, 10))) {
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'A valid account_id is required.' })
+        };
+      }
+      if (!subscription_name?.trim()) {
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'subscription_name is required.' })
+        };
+      }
+      if (!subscription_guid?.trim()) {
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'subscription_guid is required.' })
+        };
+      }
+      if (!isValidGuid(subscription_guid.trim())) {
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'subscription_guid must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' })
+        };
+      }
 
-      // ── GUID format validation ─────────────────────────────────────────────
-      if (!GUID_RE.test(subscription_guid.trim()))
-        return jsonResponse(400, {
-          error: 'subscription_guid must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-        });
+      const acctId  = parseInt(account_id, 10);
+      const subName = subscription_name.trim();
+      const subGuid = subscription_guid.trim().toLowerCase();
 
-      // ── Length validation ──────────────────────────────────────────────────
-      if (subscription_name.trim().length > 255)
-        return jsonResponse(400, { error: 'subscription_name exceeds 255 characters' });
+      const pool = await getPool();
 
-      const db = await getPool();
+      // ── Verify account exists ──
+      const acctCheck = await pool.request()
+        .input('account_id', sql.Int, acctId)
+        .query(`
+          SELECT account_id, [name] AS account_name
+          FROM dbo.accounts
+          WHERE account_id = @account_id
+        `);
+      if (!acctCheck.recordset.length) {
+        return {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: `Account with ID ${acctId} not found.` })
+        };
+      }
 
-      // ── Verify account exists ──────────────────────────────────────────────
-      const accountCheck = await db.request()
-        .input('account_id', sql.Int, parseInt(account_id, 10))
-        .query(`SELECT account_id, [name] AS account_name FROM dbo.accounts WHERE account_id = @account_id`);
-      if (accountCheck.recordset.length === 0)
-        return jsonResponse(404, { error: `Account ID ${account_id} not found.` });
+      // ── Block duplicate subscription_guid ──
+      const dupGuid = await pool.request()
+        .input('guid', sql.NVarChar, subGuid)
+        .query(`SELECT subscription_id FROM dbo.subscriptions WHERE subscription_guid = @guid`);
+      if (dupGuid.recordset.length > 0) {
+        return {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: `Subscription GUID "${subGuid}" already exists in the database.` })
+        };
+      }
 
-      const accountName = accountCheck.recordset[0].account_name;
-
-      // ── Duplicate GUID check ───────────────────────────────────────────────
-      const dupGuid = await db.request()
-        .input('subscription_guid', sql.UniqueIdentifier, subscription_guid.trim())
-        .query(`SELECT 1 FROM dbo.subscriptions WHERE subscription_guid = @subscription_guid`);
-      if (dupGuid.recordset.length)
-        return jsonResponse(409, { error: `Subscription GUID "${subscription_guid.trim()}" already exists.` });
-
-      // ── Insert ─────────────────────────────────────────────────────────────
-      const insertResult = await db.request()
-        .input('account_id',        sql.Int,              parseInt(account_id, 10))
-        .input('subscription_name', sql.NVarChar(255),    subscription_name.trim())
-        .input('subscription_guid', sql.UniqueIdentifier, subscription_guid.trim())
+      // ── Insert ──
+      const insertResult = await pool.request()
+        .input('account_id',        sql.Int,      acctId)
+        .input('subscription_name', sql.NVarChar, subName)
+        .input('subscription_guid', sql.NVarChar, subGuid)
         .query(`
           INSERT INTO dbo.subscriptions (account_id, subscription_name, subscription_guid)
           VALUES (@account_id, @subscription_name, @subscription_guid);
-
-          SELECT SCOPE_IDENTITY() AS new_subscription_id;
+          SELECT SCOPE_IDENTITY() AS subscription_id;
         `);
 
-      const newSubId = insertResult.recordset[0]?.new_subscription_id;
-      context.log(`Added subscription ${newSubId} to account ${account_id}`);
+      const newSubId   = insertResult.recordset[0]?.subscription_id;
+      const acctName   = acctCheck.recordset[0].account_name;
 
-      return jsonResponse(201, {
-        message:             `Subscription added to account "${accountName}" successfully.`,
-        new_subscription_id: newSubId,
-        account_id:          parseInt(account_id, 10),
-        account_name:        accountName
-      });
-
-    } catch (err) {
-      context.error('add-subscription error:', err);
-      return jsonResponse(500, { error: err.message });
+      return {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message:           'Subscription added successfully.',
+          subscription_id:   newSubId,
+          account_id:        acctId,
+          account_name:      acctName,
+          subscription_name: subName,
+          subscription_guid: subGuid
+        })
+      };
+    } catch (error) {
+      context.error('Add subscription error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Database error. Please try again.' })
+      };
     }
   }
 });
