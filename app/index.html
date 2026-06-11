@@ -7,9 +7,9 @@
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f7fa; color:#333; }
-    .header { background:linear-gradient(135deg,#0078d4,#106ebe); color:white; padding:1.5rem 2rem; box-shadow:0 2px 8px rgba(0,0,0,.1); }
-    .header h1 { font-size:1.5rem; font-weight:600; }
-    .header p  { opacity:.9; margin-top:.25rem; font-size:.9rem; }
+    .header { background:linear-gradient(135deg,#0078d4,#106ebe); color:white; padding:1.5rem 2rem; box-shadow:0 2px 8px rgba(0,0,0,.1); display:flex; justify-content:space-between; align-items:center; }
+    .header-left h1 { font-size:1.5rem; font-weight:600; }
+    .header-left p  { opacity:.9; margin-top:.25rem; font-size:.9rem; }
     .container { max-width:1400px; margin:0 auto; padding:1.5rem; }
 
     /* Summary cards */
@@ -25,10 +25,10 @@
     /* Tabs */
     .tabs { display:flex; gap:.5rem; margin-bottom:1rem; border-bottom:1px solid #e0e0e0; }
     .tab  { padding:.75rem 1.5rem; background:none; border:none; cursor:pointer; font-size:.95rem; color:#666; border-bottom:2px solid transparent; }
-    .tab:hover      { color:#0078d4; }
-    .tab.active     { color:#0078d4; border-bottom-color:#0078d4; font-weight:500; }
+    .tab:hover  { color:#0078d4; }
+    .tab.active { color:#0078d4; border-bottom-color:#0078d4; font-weight:500; }
 
-    /* Search */
+    /* Search bar */
     .search-bar   { display:flex; gap:1rem; margin-bottom:1rem; }
     .search-input { flex:1; padding:.75rem 1rem; border:1px solid #ddd; border-radius:6px; font-size:.95rem; }
     .search-input:focus { outline:none; border-color:#0078d4; box-shadow:0 0 0 2px rgba(0,120,212,.1); }
@@ -44,8 +44,8 @@
     .guid          { font-family:'Consolas',monospace; font-size:.85rem; color:#666; }
 
     /* Loading / error */
-    .loading  { text-align:center; padding:3rem; color:#666; }
-    .spinner  { width:40px; height:40px; border:3px solid #f0f0f0; border-top-color:#0078d4; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 1rem; }
+    .loading     { text-align:center; padding:3rem; color:#666; }
+    .spinner     { width:40px; height:40px; border:3px solid #f0f0f0; border-top-color:#0078d4; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 1rem; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .error-state { text-align:center; padding:3rem; color:#d83b01; }
 
@@ -53,9 +53,13 @@
     .pagination         { display:flex; justify-content:space-between; align-items:center; padding:1rem; background:#fafafa; border-top:1px solid #e0e0e0; }
     .pagination-info    { color:#666; font-size:.9rem; }
     .pagination-buttons { display:flex; gap:.5rem; }
-    .btn { padding:.5rem 1rem; border:1px solid #ddd; background:white; border-radius:4px; cursor:pointer; font-size:.9rem; }
+
+    /* Buttons */
+    .btn          { padding:.5rem 1rem; border:1px solid #ddd; background:white; border-radius:4px; cursor:pointer; font-size:.9rem; }
     .btn:hover:not(:disabled) { background:#f5f5f5; }
     .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-primary  { background:#0078d4; color:white; border-color:#0078d4; font-weight:500; }
+    .btn-primary:hover:not(:disabled) { background:#106ebe; border-color:#106ebe; }
 
     /* Detail view */
     .detail-view        { display:none; }
@@ -64,34 +68,102 @@
     .back-btn:hover { text-decoration:underline; }
     .detail-card    { background:white; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:1.5rem; margin-bottom:1rem; }
     .detail-card h3 { font-size:1.1rem; margin-bottom:1rem; }
-    .detail-row         { display:flex; padding:.75rem 0; border-bottom:1px solid #f0f0f0; }
+    .detail-row           { display:flex; padding:.75rem 0; border-bottom:1px solid #f0f0f0; }
     .detail-row:last-child { border-bottom:none; }
     .detail-label { width:180px; font-weight:500; color:#666; }
     .detail-value { flex:1; }
 
+    /* ── Add Mapping Modal ── */
+    .modal-overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.45); z-index:2000;
+      justify-content:center; align-items:center;
+    }
+    .modal-overlay.open { display:flex; }
+    .modal {
+      background:white; border-radius:10px; width:100%; max-width:520px;
+      box-shadow:0 8px 32px rgba(0,0,0,.2); overflow:hidden;
+    }
+    .modal-header {
+      background:linear-gradient(135deg,#0078d4,#106ebe);
+      color:white; padding:1.25rem 1.5rem;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .modal-header h2 { font-size:1.1rem; font-weight:600; }
+    .modal-close {
+      background:none; border:none; color:white;
+      font-size:1.4rem; cursor:pointer; line-height:1; opacity:.8;
+    }
+    .modal-close:hover { opacity:1; }
+    .modal-body { padding:1.5rem; }
+    .form-group { margin-bottom:1.25rem; }
+    .form-label {
+      display:block; font-size:.85rem; font-weight:600;
+      color:#444; margin-bottom:.4rem; text-transform:uppercase; letter-spacing:.4px;
+    }
+    .form-label .required { color:#d83b01; margin-left:2px; }
+    .form-input {
+      width:100%; padding:.75rem 1rem; border:1px solid #ddd;
+      border-radius:6px; font-size:.95rem; transition:border-color .2s, box-shadow .2s;
+    }
+    .form-input:focus { outline:none; border-color:#0078d4; box-shadow:0 0 0 2px rgba(0,120,212,.12); }
+    .form-input.invalid { border-color:#d83b01; box-shadow:0 0 0 2px rgba(216,59,1,.1); }
+    .form-hint { font-size:.8rem; color:#888; margin-top:.3rem; }
+    .form-error { font-size:.8rem; color:#d83b01; margin-top:.3rem; display:none; }
+    .form-error.visible { display:block; }
+    .modal-divider { border:none; border-top:1px solid #eee; margin:1.25rem 0; }
+    .modal-section-label {
+      font-size:.8rem; font-weight:600; color:#0078d4;
+      text-transform:uppercase; letter-spacing:.5px; margin-bottom:1rem;
+    }
+    .modal-footer {
+      padding:1rem 1.5rem; background:#fafafa;
+      border-top:1px solid #eee; display:flex;
+      justify-content:flex-end; gap:.75rem;
+    }
+    .modal-api-error {
+      background:#fff0ed; border:1px solid #f9d3cb; border-radius:6px;
+      padding:.75rem 1rem; margin-bottom:1rem; color:#a4262c;
+      font-size:.9rem; display:none;
+    }
+    .modal-api-error.visible { display:block; }
+    .modal-success {
+      background:#dff6dd; border:1px solid #a8e6a3; border-radius:6px;
+      padding:.75rem 1rem; margin-bottom:1rem; color:#107c10;
+      font-size:.9rem; display:none;
+    }
+    .modal-success.visible { display:block; }
+
     /* Toast */
-    .toast { position:fixed; bottom:2rem; right:2rem; padding:1rem 1.5rem; background:#323130; color:white; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.15); transform:translateY(100px); opacity:0; transition:all .3s; z-index:1000; }
+    .toast { position:fixed; bottom:2rem; right:2rem; padding:1rem 1.5rem; background:#323130; color:white; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.15); transform:translateY(100px); opacity:0; transition:all .3s; z-index:3000; }
     .toast.show  { transform:translateY(0); opacity:1; }
     .toast.error { background:#d83b01; }
+    .toast.success { background:#107c10; }
 
     @media(max-width:768px){
-      .header { padding:1rem; }
+      .header { flex-direction:column; align-items:flex-start; gap:1rem; }
       .container { padding:1rem; }
       .summary-grid { grid-template-columns:1fr 1fr; }
       .table-container { overflow-x:auto; }
+      .modal { margin:1rem; max-width:100%; }
     }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>Account Subscription Mapping</h1>
-  <p>View ServiceNow Accounts and Azure Subscriptions</p>
+  <div class="header-left">
+    <h1>Account Subscription Mapping</h1>
+    <p>View ServiceNow Accounts and Azure Subscriptions</p>
+  </div>
+  <button class="btn btn-primary" onclick="openAddMappingModal()" style="white-space:nowrap;">
+    + Add Mapping
+  </button>
 </div>
 
 <div class="container">
 
-  <!-- ── Summary cards ── -->
+  <!-- Summary cards -->
   <div class="summary-grid">
     <div class="summary-card accounts">
       <div class="label">Total Accounts</div>
@@ -111,7 +183,7 @@
     </div>
   </div>
 
-  <!-- ── Main list view ── -->
+  <!-- Main list view -->
   <div id="main-view">
     <div class="tabs">
       <button class="tab active" data-tab="accounts">Accounts</button>
@@ -130,9 +202,9 @@
     </div>
   </div>
 
-  <!-- ── Account detail view ── -->
+  <!-- Account detail view -->
   <div id="detail-view" class="detail-view">
-    <button class="back-btn" onclick="showMainView()">← Back to list</button>
+    <button class="back-btn" onclick="showMainView()">&#8592; Back to list</button>
 
     <div class="detail-card">
       <h3>Account Details</h3>
@@ -150,23 +222,117 @@
 
 </div><!-- /.container -->
 
+<!-- ──────────────────────────────────────────────────────────
+     Add Mapping Modal
+     Phase 1: creates a NEW account + first subscription together
+     ────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="add-mapping-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+
+    <div class="modal-header">
+      <h2 id="modal-title">Add New Account &amp; Subscription</h2>
+      <button class="modal-close" onclick="closeAddMappingModal()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- API-level error / success banners -->
+      <div class="modal-api-error" id="modal-api-error"></div>
+      <div class="modal-success"   id="modal-success"></div>
+
+      <!-- Account section -->
+      <div class="modal-section-label">Account Information</div>
+
+      <div class="form-group">
+        <label class="form-label" for="input-account-name">
+          Account Name <span class="required">*</span>
+        </label>
+        <input
+          type="text" id="input-account-name"
+          class="form-input" maxlength="255"
+          placeholder="e.g. Contoso - Finance"
+          autocomplete="off"
+        >
+        <div class="form-hint">Must be unique. Max 255 characters.</div>
+        <div class="form-error" id="err-account-name"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="input-company-id">
+          Company ID <span class="required">*</span>
+        </label>
+        <input
+          type="text" id="input-company-id"
+          class="form-input" maxlength="100"
+          placeholder="e.g. 12345"
+          autocomplete="off"
+        >
+        <div class="form-hint">Must be unique. Max 100 characters.</div>
+        <div class="form-error" id="err-company-id"></div>
+      </div>
+
+      <hr class="modal-divider">
+
+      <!-- Subscription section -->
+      <div class="modal-section-label">Subscription Information</div>
+
+      <div class="form-group">
+        <label class="form-label" for="input-subscription-name">
+          Subscription Name <span class="required">*</span>
+        </label>
+        <input
+          type="text" id="input-subscription-name"
+          class="form-input" maxlength="255"
+          placeholder="e.g. Prod Subscription"
+          autocomplete="off"
+        >
+        <div class="form-hint">Max 255 characters.</div>
+        <div class="form-error" id="err-subscription-name"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="input-subscription-guid">
+          Subscription ID (GUID) <span class="required">*</span>
+        </label>
+        <input
+          type="text" id="input-subscription-guid"
+          class="form-input"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          autocomplete="off" spellcheck="false"
+        >
+        <div class="form-hint">Azure Subscription GUID — must be unique. Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</div>
+        <div class="form-error" id="err-subscription-guid"></div>
+      </div>
+
+    </div><!-- /.modal-body -->
+
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAddMappingModal()" id="modal-cancel-btn">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddMapping()" id="modal-submit-btn">
+        Save Mapping
+      </button>
+    </div>
+
+  </div><!-- /.modal -->
+</div><!-- /.modal-overlay -->
+
 <div class="toast" id="toast"></div>
 
 <script>
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
   // Config
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
   const API_BASE = window.location.origin + '/api';
 
-  let currentTab     = 'accounts';
-  let currentPage    = 1;
-  let totalPages     = 1;
-  let currentData    = [];
-  let searchTimeout  = null;
+  let currentTab    = 'accounts';
+  let currentPage   = 1;
+  let totalPages    = 1;
+  let currentData   = [];
+  let searchTimeout = null;
 
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
   // Bootstrap
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     loadSummary();
     loadData();
@@ -186,32 +352,33 @@
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => { currentPage = 1; loadData(); }, 300);
     });
+
+    // Close modal when clicking outside it
+    document.getElementById('add-mapping-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeAddMappingModal();
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAddMappingModal();
+    });
   });
 
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
   // loadSummary — populates all four dashboard cards
-  //
-  // FIX: previously only total_accounts was returned by
-  // the API. Now all four keys are present in the response.
-  //   data.total_accounts
-  //   data.total_subscriptions
-  //   data.total_unknown
-  //   data.accounts_with_multiple_subscriptions
-  // ─────────────────────────────────────────────────
+  // API keys: total_accounts, total_subscriptions,
+  //           total_unknown, accounts_with_multiple_subscriptions
+  // ────────────────────────────────────────────────────────────
   async function loadSummary() {
     try {
       const response = await fetch(API_BASE + '/summary');
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const data = await response.json();
 
-      document.getElementById('total-accounts')      .textContent = data.total_accounts                       ?? '-';
-      document.getElementById('total-subscriptions') .textContent = data.total_subscriptions                  ?? '-';
-      document.getElementById('total-unknown')       .textContent = data.total_unknown                        ?? '-';
-      document.getElementById('total-multi')         .textContent = data.accounts_with_multiple_subscriptions ?? '-';
+      document.getElementById('total-accounts')     .textContent = data.total_accounts                      ?? '-';
+      document.getElementById('total-subscriptions').textContent = data.total_subscriptions                  ?? '-';
+      document.getElementById('total-unknown')      .textContent = data.total_unknown                        ?? '-';
+      document.getElementById('total-multi')        .textContent = data.accounts_with_multiple_subscriptions ?? '-';
 
     } catch (error) {
       console.error('Summary fetch failed:', error);
@@ -221,9 +388,9 @@
     }
   }
 
-  // ─────────────────────────────────────────────────
-  // loadData — fetches the active tab's paginated data
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
+  // loadData — fetches active tab's paginated data
+  // ────────────────────────────────────────────────────────────
   async function loadData() {
     const tableContent = document.getElementById('table-content');
     tableContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading data...</p></div>';
@@ -239,33 +406,30 @@
       switch (currentTab) {
         case 'accounts':      endpoint = API_BASE + '/accounts';      break;
         case 'subscriptions': endpoint = API_BASE + '/subscriptions'; break;
-        case 'unknown':       endpoint = API_BASE + '/unknown';        break;
+        case 'unknown':       endpoint = API_BASE + '/unknown';       break;
       }
 
       const response = await fetch(endpoint + '?' + params.toString());
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
-      const result   = await response.json();
-      currentData    = result.data || result;
-      totalPages     = result.pagination?.total_pages || 1;
+      const result    = await response.json();
+      currentData     = result.data || result;
+      totalPages      = result.pagination?.total_pages || 1;
 
       renderTable(result.pagination);
 
     } catch (error) {
-      tableContent.innerHTML = `<div class="error-state"><p>⚠ Error: ${error.message}</p></div>`;
+      tableContent.innerHTML = `<div class="error-state"><p>&#9888; Error: ${escHtml(error.message)}</p></div>`;
       showToast('Failed to load data: ' + error.message, true);
     }
   }
 
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
   // renderTable
-  //
-  // FIX: accounts tab referenced item.account_name —
-  // the API now aliases a.name AS account_name so this
-  // stays consistent. Unknown tab now uses item.id
-  // (PK of dbo.subscriptions_unknown) instead of
-  // item.subscription_id which doesn't exist in that table.
-  // ─────────────────────────────────────────────────
+  // accounts tab:      account_name (a.name alias), company_id, subscription_count, account_id
+  // subscriptions tab: subscription_name, account_name, company_id, subscription_guid
+  // unknown tab:       subscription_name, subscription_guid  (PK = id)
+  // ────────────────────────────────────────────────────────────
   function renderTable(pagination) {
     const tableContent = document.getElementById('table-content');
 
@@ -348,13 +512,10 @@
     }
   }
 
-  // ─────────────────────────────────────────────────
-  // viewAccount — loads the detail panel
-  //
-  // FIX: original code referenced data.account.account_name
-  // The API now returns the name column aliased as account_name,
-  // so this works correctly.
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
+  // viewAccount — loads account detail panel
+  // API returns: account.account_name (alias of dbo.accounts.name)
+  // ────────────────────────────────────────────────────────────
   async function viewAccount(accountId) {
     try {
       const response = await fetch(`${API_BASE}/accounts/${accountId}`);
@@ -398,13 +559,172 @@
     document.getElementById('main-view').style.display = '';
   }
 
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
+  // Add Mapping Modal
+  // ────────────────────────────────────────────────────────────
+  function openAddMappingModal() {
+    resetModalForm();
+    document.getElementById('add-mapping-modal').classList.add('open');
+    document.getElementById('input-account-name').focus();
+  }
+
+  function closeAddMappingModal() {
+    document.getElementById('add-mapping-modal').classList.remove('open');
+    resetModalForm();
+  }
+
+  function resetModalForm() {
+    ['input-account-name','input-company-id','input-subscription-name','input-subscription-guid']
+      .forEach(id => {
+        const el = document.getElementById(id);
+        el.value = '';
+        el.classList.remove('invalid');
+      });
+
+    ['err-account-name','err-company-id','err-subscription-name','err-subscription-guid']
+      .forEach(id => {
+        const el = document.getElementById(id);
+        el.textContent = '';
+        el.classList.remove('visible');
+      });
+
+    setModalApiError('');
+    setModalSuccess('');
+    setModalSubmitting(false);
+  }
+
+  function setModalApiError(msg) {
+    const el = document.getElementById('modal-api-error');
+    el.textContent = msg;
+    el.classList.toggle('visible', !!msg);
+  }
+
+  function setModalSuccess(msg) {
+    const el = document.getElementById('modal-success');
+    el.textContent = msg;
+    el.classList.toggle('visible', !!msg);
+  }
+
+  function setModalSubmitting(isSubmitting) {
+    const submitBtn = document.getElementById('modal-submit-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    submitBtn.disabled = isSubmitting;
+    cancelBtn.disabled = isSubmitting;
+    submitBtn.textContent = isSubmitting ? 'Saving...' : 'Save Mapping';
+  }
+
+  function showFieldError(fieldId, errId, message) {
+    document.getElementById(fieldId).classList.add('invalid');
+    const errEl = document.getElementById(errId);
+    errEl.textContent = message;
+    errEl.classList.add('visible');
+  }
+
+  function clearFieldError(fieldId, errId) {
+    document.getElementById(fieldId).classList.remove('invalid');
+    const errEl = document.getElementById(errId);
+    errEl.textContent = '';
+    errEl.classList.remove('visible');
+  }
+
+  const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  function validateModalForm() {
+    let valid = true;
+
+    const accountName      = document.getElementById('input-account-name').value.trim();
+    const companyId        = document.getElementById('input-company-id').value.trim();
+    const subscriptionName = document.getElementById('input-subscription-name').value.trim();
+    const subscriptionGuid = document.getElementById('input-subscription-guid').value.trim();
+
+    // Clear all errors first
+    [
+      ['input-account-name',      'err-account-name'],
+      ['input-company-id',        'err-company-id'],
+      ['input-subscription-name', 'err-subscription-name'],
+      ['input-subscription-guid', 'err-subscription-guid'],
+    ].forEach(([f, e]) => clearFieldError(f, e));
+
+    if (!accountName) {
+      showFieldError('input-account-name', 'err-account-name', 'Account name is required');
+      valid = false;
+    }
+    if (!companyId) {
+      showFieldError('input-company-id', 'err-company-id', 'Company ID is required');
+      valid = false;
+    }
+    if (!subscriptionName) {
+      showFieldError('input-subscription-name', 'err-subscription-name', 'Subscription name is required');
+      valid = false;
+    }
+    if (!subscriptionGuid) {
+      showFieldError('input-subscription-guid', 'err-subscription-guid', 'Subscription GUID is required');
+      valid = false;
+    } else if (!GUID_REGEX.test(subscriptionGuid)) {
+      showFieldError('input-subscription-guid', 'err-subscription-guid',
+        'Must be a valid GUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
+      valid = false;
+    }
+
+    return valid;
+  }
+
+  async function submitAddMapping() {
+    setModalApiError('');
+    setModalSuccess('');
+
+    if (!validateModalForm()) return;
+
+    const payload = {
+      account_name:      document.getElementById('input-account-name').value.trim(),
+      company_id:        document.getElementById('input-company-id').value.trim(),
+      subscription_name: document.getElementById('input-subscription-name').value.trim(),
+      subscription_guid: document.getElementById('input-subscription-guid').value.trim(),
+    };
+
+    setModalSubmitting(true);
+
+    try {
+      const response = await fetch(API_BASE + '/create-mapping', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // 400 = validation, 409 = duplicate, 500 = server error
+        setModalApiError(data.error || `Error ${response.status}: request failed`);
+        setModalSubmitting(false);
+        return;
+      }
+
+      // ── Success ──
+      setModalSuccess(
+        `✓ Mapping saved! Account "${escHtml(data.account_name)}" ` +
+        `(ID: ${data.account_id}) created with subscription "${escHtml(data.subscription_name)}".`
+      );
+
+      showToast(`Account "${data.account_name}" added successfully`, false);
+
+      // Refresh summary + current tab data, then close modal after short delay
+      await Promise.all([loadSummary(), loadData()]);
+      setTimeout(() => closeAddMappingModal(), 1800);
+
+    } catch (err) {
+      setModalApiError('Network error: ' + err.message);
+      setModalSubmitting(false);
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────
   // Utilities
-  // ─────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────
   function showToast(message, isError = false) {
     const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className   = 'toast' + (isError ? ' error' : '');
+    toast.textContent  = message;
+    toast.className    = 'toast' + (isError ? ' error' : ' success');
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
   }
