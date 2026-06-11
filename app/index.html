@@ -157,7 +157,7 @@
     <p>View ServiceNow Accounts and Azure Subscriptions</p>
   </div>
   <button class="btn btn-primary" onclick="openAddMappingModal()" style="white-space:nowrap;">
-    + Add Mapping
+    + Add New Mapping
   </button>
 </div>
 
@@ -223,7 +223,7 @@
 </div><!-- /.container -->
 
 <!-- ──────────────────────────────────────────────────────────
-     Add Mapping Modal
+     Add New Mapping Modal
      Phase 1: creates a NEW account + first subscription together
      ────────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="add-mapping-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -250,7 +250,7 @@
         <input
           type="text" id="input-account-name"
           class="form-input" maxlength="255"
-          placeholder="e.g. Contoso - Finance"
+          placeholder="e.g. SampleCo LLC"
           autocomplete="off"
         >
         <div class="form-hint">Must be unique. Max 255 characters.</div>
@@ -264,7 +264,7 @@
         <input
           type="text" id="input-company-id"
           class="form-input" maxlength="100"
-          placeholder="e.g. 12345"
+          placeholder="e.g. SampleCo"
           autocomplete="off"
         >
         <div class="form-hint">Must be unique. Max 100 characters.</div>
@@ -560,7 +560,7 @@
   }
 
   // ────────────────────────────────────────────────────────────
-  // Add Mapping Modal
+  // Add New Mapping Modal
   // ────────────────────────────────────────────────────────────
   function openAddMappingModal() {
     resetModalForm();
