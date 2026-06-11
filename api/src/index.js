@@ -1,291 +1,396 @@
 import { app } from '@azure/functions';
 import sql from 'mssql';
 
-// Database connection string from environment
-const getConnectionString = () => {
-  return process.env.AzureSQLConnectionString;
-};
-
-// Initialize database pool
+// ─────────────────────────────────────────────────────────────
+// Database connection pool (singleton with reset on failure)
+// ─────────────────────────────────────────────────────────────
 let pool = null;
+
 const getPool = async () => {
-  if (!pool) {
-    const connStr = getConnectionString();
-    if (!connStr) {
-      throw new Error('Missing AzureSQLConnectionString environment variable');
+    if (!pool) {
+        const connStr = process.env.AzureSQLConnectionString;
+        if (!connStr) {
+            throw new Error('Missing AzureSQLConnectionString environment variable');
+        }
+        try {
+            pool = await sql.connect(connStr);
+        } catch (err) {
+            pool = null; // Reset so the next request retries
+            throw err;
+        }
     }
-    pool = await sql.connect(connStr);
-  }
-  return pool;
+    return pool;
 };
 
-// Health check endpoint
+// ─────────────────────────────────────────────────────────────
+// Helper: parse pagination query params
+// ─────────────────────────────────────────────────────────────
+const getPagination = (request) => {
+    const page     = Math.max(1, parseInt(request.query.get('page')      || '1', 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(request.query.get('page_size') || '50', 10)));
+    const offset   = (page - 1) * pageSize;
+    return { page, pageSize, offset };
+};
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/health
+// ─────────────────────────────────────────────────────────────
 app.http('health', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  handler: async (request, context) => {
-    return {
-      status: 200,
-      headers: { 'Content-Type': 'text/plain' },
-      body: 'API is running'
-    };
-  }
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        return {
+            status: 200,
+            headers: { 'Content-Type': 'text/plain' },
+            body: 'API is running'
+        };
+    }
 });
 
-// Summary endpoint
+// ─────────────────────────────────────────────────────────────
+// GET /api/summary
+//
+// Returns all four dashboard card values:
+//   total_accounts                  – COUNT(*) from dbo.accounts
+//   total_subscriptions             – COUNT(*) from dbo.subscriptions
+//   total_unknown                   – COUNT(*) from dbo.subscriptions_unknown
+//   accounts_with_multiple_subscriptions – accounts that have >= 2 linked subscriptions
+//
+// FIX: The original query only returned total_accounts.
+//      The frontend also reads total_subscriptions, total_unknown,
+//      and accounts_with_multiple_subscriptions — all were undefined.
+// ─────────────────────────────────────────────────────────────
 app.http('summary', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  handler: async (request, context) => {
-    try {
-      const pool = await getPool();
-      const result = await pool.request().query(`
-        SELECT COUNT(*) AS total_accounts 
-        FROM Accounts
-      `);
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const db = await getPool();
+            const result = await db.request().query(`
+                SELECT
+                    (SELECT COUNT(*) FROM dbo.accounts)                          AS total_accounts,
+                    (SELECT COUNT(*) FROM dbo.subscriptions)                     AS total_subscriptions,
+                    (SELECT COUNT(*) FROM dbo.subscriptions_unknown)             AS total_unknown,
+                    (
+                        SELECT COUNT(*) FROM (
+                            SELECT account_id
+                            FROM dbo.subscriptions
+                            GROUP BY account_id
+                            HAVING COUNT(*) >= 2
+                        ) multi
+                    )                                                            AS accounts_with_multiple_subscriptions
+            `);
 
-      return {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          total_accounts: result.recordset[0].total_accounts
-        })
-      };
-    } catch (error) {
-      context.error('DB Error:', error);
-      return {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: error.message })
-      };
+            return {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(result.recordset[0])
+            };
+        } catch (error) {
+            context.error('Summary error:', error);
+            return {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: error.message })
+            };
+        }
     }
-  }
 });
 
-// Subscriptions endpoint
-app.http('subscriptions', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  handler: async (request, context) => {
-    try {
-      const pool = await getPool();
-      const result = await pool.request().query(`
-        SELECT TOP 50 subscription_id, account_id 
-        FROM Subscriptions
-      `);
-
-      return {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result.recordset)
-      };
-    } catch (error) {
-      context.error('DB Error:', error);
-      return {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: error.message })
-      };
-    }
-  }
-});
-
+// ─────────────────────────────────────────────────────────────
+// GET /api/accounts?page=1&page_size=50&search=
+//
+// Returns paginated list of accounts with subscription counts.
+//
+// FIX: Original query referenced a.account_name but the schema
+//      column is actually `name` (nvarchar(255), not null).
+//      All references to account_name updated to a.name AS account_name.
+// ─────────────────────────────────────────────────────────────
 app.http('accounts', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  handler: async (request, context) => {
-    try {
-      const pool = await getPool();
-      const { page, pageSize, offset } = getPagination(request);
-      const search = request.query.get('search') || '';
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const db = await getPool();
+            const { page, pageSize, offset } = getPagination(request);
+            const search = request.query.get('search') || '';
 
-      // Count query
-      let countQuery = 'SELECT COUNT(*) AS total FROM Accounts';
-      let dataQuery = `
-        SELECT a.account_id, a.name, a.company_id, 
-               COUNT(s.subscription_id) AS subscription_count
-        FROM Accounts a
-        LEFT JOIN Subscriptions s ON a.account_id = s.account_id
-      `;
+            // Count query
+            const countReq = db.request();
+            let countQuery = `SELECT COUNT(*) AS total FROM dbo.accounts`;
+            if (search) {
+                countQuery += ` WHERE name LIKE @search`;
+                countReq.input('search', sql.NVarChar, `%${search}%`);
+            }
+            const countResult = await countReq.query(countQuery);
+            const total = countResult.recordset[0].total;
 
-      const conditions = [];
-      const params = [];
+            // Data query
+            const dataReq = db.request();
+            dataReq.input('offset',   sql.Int, offset);
+            dataReq.input('pageSize', sql.Int, pageSize);
 
-      if (search) {
-        conditions.push('a.name LIKE @search');
-        params.push({ name: 'search', value: `%${search}%` });
-      }
+            let dataQuery = `
+                SELECT
+                    a.account_id,
+                    a.name         AS account_name,
+                    a.company_id,
+                    COUNT(s.subscription_id) AS subscription_count
+                FROM dbo.accounts a
+                LEFT JOIN dbo.subscriptions s ON a.account_id = s.account_id
+            `;
+            if (search) {
+                dataQuery += ` WHERE a.name LIKE @search`;
+                dataReq.input('search', sql.NVarChar, `%${search}%`);
+            }
+            dataQuery += `
+                GROUP BY a.account_id, a.name, a.company_id
+                ORDER BY a.name
+                OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+            `;
 
-      if (conditions.length > 0) {
-        countQuery += ' WHERE ' + conditions.map(c => c.replace('a.', '')).join(' AND ');
-        dataQuery += ' WHERE ' + conditions.join(' AND ');
-      }
+            const dataResult = await dataReq.query(dataQuery);
 
-      dataQuery += ' GROUP BY a.account_id, a.name, a.company_id ORDER BY a.name OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY';
-
-      // Get total count
-      const countReq = pool.request();
-      params.forEach(p => countReq.input(p.name, p.value));
-      const countResult = await countReq.query(countQuery);
-      const total = countResult.recordset[0].total;
-
-      // Get data
-      const dataReq = pool.request();
-      dataReq.input('offset', offset);
-      dataReq.input('pageSize', pageSize);
-      params.forEach(p => dataReq.input(p.name, p.value));
-      const dataResult = await dataReq.query(dataQuery);
-
-      return {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: dataResult.recordset,
-          pagination: { page, page_size: pageSize, total_pages: Math.ceil(total / pageSize) }
-        })
-      };
-    } catch (error) {
-      context.log.error('Accounts error:', error);
-      return { status: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message }) };
+            return {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: dataResult.recordset,
+                    pagination: {
+                        page,
+                        page_size: pageSize,
+                        total_records: total,
+                        total_pages: Math.ceil(total / pageSize)
+                    }
+                })
+            };
+        } catch (error) {
+            context.error('Accounts error:', error);
+            return {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: error.message })
+            };
+        }
     }
-  }
 });
 
-// Account detail endpoint
+// ─────────────────────────────────────────────────────────────
+// GET /api/accounts/{accountId}
+//
+// Returns a single account and its linked subscriptions.
+//
+// FIX: Original query used `account_name` — the real column is `name`.
+//      Updated SELECT and all references accordingly.
+// ─────────────────────────────────────────────────────────────
 app.http('account-detail', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'accounts/{accountId}',
-  handler: async (request, context) => {
-    try {
-      const pool = await getPool();
-      const accountId = request.params.accountId;
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'accounts/{accountId}',
+    handler: async (request, context) => {
+        try {
+            const db        = await getPool();
+            const accountId = request.params.accountId;
 
-      // Get account
-      const accountResult = await pool.request()
-        .input('accountId', accountId)
-        .query('SELECT account_id, account_name, company_id FROM Accounts WHERE account_id = @accountId');
+            // Validate accountId is numeric to prevent injection
+            if (!accountId || isNaN(Number(accountId))) {
+                return {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ error: 'Invalid accountId' })
+                };
+            }
 
-      if (accountResult.recordset.length === 0) {
-        return { status: 404, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Account not found' }) };
-      }
+            // Get account — column is `name`, aliased as account_name for frontend compatibility
+            const accountResult = await db.request()
+                .input('accountId', sql.Int, accountId)
+                .query(`
+                    SELECT account_id,
+                           name       AS account_name,
+                           company_id
+                    FROM dbo.accounts
+                    WHERE account_id = @accountId
+                `);
 
-      // Get subscriptions
-      const subsResult = await pool.request()
-        .input('accountId', accountId)
-        .query('SELECT subscription_id, subscription_name, subscription_guid FROM Subscriptions WHERE account_id = @accountId');
+            if (accountResult.recordset.length === 0) {
+                return {
+                    status: 404,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ error: 'Account not found' })
+                };
+            }
 
-      return {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account: accountResult.recordset[0],
-          subscriptions: subsResult.recordset
-        })
-      };
-    } catch (error) {
-      context.log.error('Account detail error:', error);
-      return { status: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message }) };
+            // Get subscriptions for this account
+            // subscription_guid is nullable (uniqueidentifier, null) — handled gracefully
+            const subsResult = await db.request()
+                .input('accountId', sql.Int, accountId)
+                .query(`
+                    SELECT subscription_id,
+                           subscription_name,
+                           subscription_guid
+                    FROM dbo.subscriptions
+                    WHERE account_id = @accountId
+                    ORDER BY subscription_name
+                `);
+
+            return {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    account:       accountResult.recordset[0],
+                    subscriptions: subsResult.recordset
+                })
+            };
+        } catch (error) {
+            context.error('Account detail error:', error);
+            return {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: error.message })
+            };
+        }
     }
-  }
 });
 
-// Subscriptions list endpoint
+// ─────────────────────────────────────────────────────────────
+// GET /api/subscriptions?page=1&page_size=50&search=
+//
+// Returns paginated list from dbo.subscriptions joined to dbo.accounts.
+//
+// FIX: Original query referenced a.account_name — real column is a.name.
+//      Also referenced only subscription_id/account_id in the original
+//      stub; now returns all columns the frontend table expects.
+// ─────────────────────────────────────────────────────────────
 app.http('subscriptions-list', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'subscriptions',
-  handler: async (request, context) => {
-    try {
-      const pool = await getPool();
-      const { page, pageSize, offset } = getPagination(request);
-      const search = request.query.get('search') || '';
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'subscriptions',
+    handler: async (request, context) => {
+        try {
+            const db = await getPool();
+            const { page, pageSize, offset } = getPagination(request);
+            const search = request.query.get('search') || '';
 
-      let countQuery = 'SELECT COUNT(*) AS total FROM Subscriptions s LEFT JOIN Accounts a ON s.account_id = a.account_id';
-      let dataQuery = `
-        SELECT s.subscription_id, s.subscription_name, s.subscription_guid,
-               a.account_name, a.company_id
-        FROM Subscriptions s
-        LEFT JOIN Accounts a ON s.account_id = a.account_id
-      `;
+            // Count
+            const countReq = db.request();
+            let countQuery = `
+                SELECT COUNT(*) AS total
+                FROM dbo.subscriptions s
+                LEFT JOIN dbo.accounts a ON s.account_id = a.account_id
+            `;
+            if (search) {
+                countQuery += ` WHERE (s.subscription_name LIKE @search OR a.name LIKE @search)`;
+                countReq.input('search', sql.NVarChar, `%${search}%`);
+            }
+            const countResult = await countReq.query(countQuery);
 
-      const conditions = [];
-      if (search) {
-        conditions.push('(s.subscription_name LIKE @search OR a.account_name LIKE @search)');
-      }
+            // Data — account_name alias for frontend compatibility
+            const dataReq = db.request();
+            dataReq.input('offset',   sql.Int, offset);
+            dataReq.input('pageSize', sql.Int, pageSize);
 
-      if (conditions.length > 0) {
-        countQuery += ' WHERE ' + conditions.join(' AND ');
-        dataQuery += ' WHERE ' + conditions.join(' AND ');
-      }
+            let dataQuery = `
+                SELECT
+                    s.subscription_id,
+                    s.subscription_name,
+                    s.subscription_guid,
+                    s.account_id,
+                    a.name       AS account_name,
+                    a.company_id
+                FROM dbo.subscriptions s
+                LEFT JOIN dbo.accounts a ON s.account_id = a.account_id
+            `;
+            if (search) {
+                dataQuery += ` WHERE (s.subscription_name LIKE @search OR a.name LIKE @search)`;
+                dataReq.input('search', sql.NVarChar, `%${search}%`);
+            }
+            dataQuery += `
+                ORDER BY s.subscription_name
+                OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+            `;
 
-      dataQuery += ' ORDER BY s.subscription_name OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY';
+            const dataResult = await dataReq.query(dataQuery);
 
-      const countReq = pool.request();
-      if (search) countReq.input('search', `%${search}%`);
-      const countResult = await countReq.query(countQuery);
-
-      const dataReq = pool.request();
-      dataReq.input('offset', offset);
-      dataReq.input('pageSize', pageSize);
-      if (search) dataReq.input('search', `%${search}%`);
-      const dataResult = await dataReq.query(dataQuery);
-
-      return {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: dataResult.recordset,
-          pagination: { page, page_size: pageSize, total_pages: Math.ceil(countResult.recordset[0].total / pageSize) }
-        })
-      };
-    } catch (error) {
-      context.log.error('Subscriptions error:', error);
-      return { status: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message }) };
+            return {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: dataResult.recordset,
+                    pagination: {
+                        page,
+                        page_size: pageSize,
+                        total_records: countResult.recordset[0].total,
+                        total_pages: Math.ceil(countResult.recordset[0].total / pageSize)
+                    }
+                })
+            };
+        } catch (error) {
+            context.error('Subscriptions error:', error);
+            return {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: error.message })
+            };
+        }
     }
-  }
 });
 
-// Unknown subscriptions endpoint
+// ─────────────────────────────────────────────────────────────
+// GET /api/unknown?page=1&page_size=50
+//
+// Returns paginated list from dbo.subscriptions_unknown.
+//
+// FIX: Original query looked at dbo.subscriptions WHERE guid IS NULL —
+//      but your schema has a separate dbo.subscriptions_unknown table.
+//      PK is `id` (not subscription_id). Updated accordingly.
+// ─────────────────────────────────────────────────────────────
 app.http('unknown', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  handler: async (request, context) => {
-    try {
-      const pool = await getPool();
-      const { page, pageSize, offset } = getPagination(request);
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const db = await getPool();
+            const { page, pageSize, offset } = getPagination(request);
 
-      const countResult = await pool.request().query(`
-        SELECT COUNT(*) AS total FROM Subscriptions 
-        WHERE subscription_guid IS NULL OR subscription_guid = ''
-      `);
+            const countResult = await db.request().query(`
+                SELECT COUNT(*) AS total FROM dbo.subscriptions_unknown
+            `);
 
-      const dataResult = await pool.request()
-        .input('offset', offset)
-        .input('pageSize', pageSize)
-        .query(`
-          SELECT subscription_id, subscription_name, subscription_guid
-          FROM Subscriptions
-          WHERE subscription_guid IS NULL OR subscription_guid = ''
-          ORDER BY subscription_name
-          OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
-        `);
+            const dataResult = await db.request()
+                .input('offset',   sql.Int, offset)
+                .input('pageSize', sql.Int, pageSize)
+                .query(`
+                    SELECT
+                        id,
+                        subscription_name,
+                        subscription_guid
+                    FROM dbo.subscriptions_unknown
+                    ORDER BY subscription_name
+                    OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+                `);
 
-      return {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: dataResult.recordset,
-          pagination: { page, page_size: pageSize, total_pages: Math.ceil(countResult.recordset[0].total / pageSize) }
-        })
-      };
-    } catch (error) {
-      context.log.error('Unknown error:', error);
-      return { status: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message }) };
+            return {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: dataResult.recordset,
+                    pagination: {
+                        page,
+                        page_size: pageSize,
+                        total_records: countResult.recordset[0].total,
+                        total_pages: Math.ceil(countResult.recordset[0].total / pageSize)
+                    }
+                })
+            };
+        } catch (error) {
+            context.error('Unknown subscriptions error:', error);
+            return {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: error.message })
+            };
+        }
     }
-  }
 });
 
-app.setup({
-  enableHttpStream: true
-});
+app.setup({ enableHttpStream: true });

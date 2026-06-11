@@ -1,250 +1,423 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account-Subscription Mapping</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
-        .header { background: linear-gradient(135deg, #0078d4, #106ebe); color: white; padding: 1.5rem 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header h1 { font-size: 1.5rem; font-weight: 600; }
-        .header p { opacity: 0.9; margin-top: 0.25rem; font-size: 0.9rem; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-        .summary-card { background: white; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #0078d4; }
-        .summary-card.accounts { border-left-color: #107c10; }
-        .summary-card.subscriptions { border-left-color: #0078d4; }
-        .summary-card.unknown { border-left-color: #d83b01; }
-        .summary-card.multi { border-left-color: #5c2d91; }
-        .summary-card .label { font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-        .summary-card .value { font-size: 2rem; font-weight: 700; margin-top: 0.5rem; }
-        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0; }
-        .tab { padding: 0.75rem 1.5rem; background: none; border: none; cursor: pointer; font-size: 0.95rem; color: #666; border-bottom: 2px solid transparent; }
-        .tab:hover { color: #0078d4; }
-        .tab.active { color: #0078d4; border-bottom-color: #0078d4; font-weight: 500; }
-        .search-bar { display: flex; gap: 1rem; margin-bottom: 1rem; }
-        .search-input { flex: 1; padding: 0.75rem 1rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; }
-        .search-input:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,0.1); }
-        .table-container { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 1rem; background: #fafafa; font-weight: 600; font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e0e0e0; }
-        td { padding: 1rem; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
-        tr:hover { background: #fafafa; }
-        .badge { display: inline-block; padding: 0.25rem 0.6rem; background: #e3f2fd; color: #1565c0; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
-        .badge.unknown { background: #fff3e0; color: #e65100; }
-        .guid { font-family: 'Consolas', monospace; font-size: 0.85rem; color: #666; }
-        .loading { text-align: center; padding: 3rem; color: #666; }
-        .spinner { width: 40px; height: 40px; border: 3px solid #f0f0f0; border-top-color: #0078d4; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fafafa; border-top: 1px solid #e0e0e0; }
-        .pagination-info { color: #666; font-size: 0.9rem; }
-        .pagination-buttons { display: flex; gap: 0.5rem; }
-        .btn { padding: 0.5rem 1rem; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
-        .btn:hover:not(:disabled) { background: #f5f5f5; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .detail-view { display: none; }
-        .detail-view.active { display: block; }
-        .back-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: none; border: none; color: #0078d4; cursor: pointer; font-size: 0.95rem; margin-bottom: 1rem; }
-        .back-btn:hover { text-decoration: underline; }
-        .detail-card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.5rem; margin-bottom: 1rem; }
-        .detail-card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
-        .detail-row { display: flex; padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; }
-        .detail-row:last-child { border-bottom: none; }
-        .detail-label { width: 180px; font-weight: 500; color: #666; }
-        .detail-value { flex: 1; }
-        .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 1.5rem; background: #323130; color: white; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 1000; }
-        .toast.show { transform: translateY(0); opacity: 1; }
-        .toast.error { background: #d83b01; }
-        @media (max-width: 768px) { .header { padding: 1rem; } .container { padding: 1rem; } .summary-grid { grid-template-columns: 1fr 1fr; } .table-container { overflow-x: auto; } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account-Subscription Mapping</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f7fa; color:#333; }
+    .header { background:linear-gradient(135deg,#0078d4,#106ebe); color:white; padding:1.5rem 2rem; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+    .header h1 { font-size:1.5rem; font-weight:600; }
+    .header p  { opacity:.9; margin-top:.25rem; font-size:.9rem; }
+    .container { max-width:1400px; margin:0 auto; padding:1.5rem; }
+
+    /* Summary cards */
+    .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .summary-card { background:white; border-radius:8px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,.08); border-left:4px solid #0078d4; }
+    .summary-card.accounts      { border-left-color:#107c10; }
+    .summary-card.subscriptions { border-left-color:#0078d4; }
+    .summary-card.unknown       { border-left-color:#d83b01; }
+    .summary-card.multi         { border-left-color:#5c2d91; }
+    .summary-card .label { font-size:.85rem; color:#666; text-transform:uppercase; letter-spacing:.5px; }
+    .summary-card .value { font-size:2rem; font-weight:700; margin-top:.5rem; }
+
+    /* Tabs */
+    .tabs { display:flex; gap:.5rem; margin-bottom:1rem; border-bottom:1px solid #e0e0e0; }
+    .tab  { padding:.75rem 1.5rem; background:none; border:none; cursor:pointer; font-size:.95rem; color:#666; border-bottom:2px solid transparent; }
+    .tab:hover      { color:#0078d4; }
+    .tab.active     { color:#0078d4; border-bottom-color:#0078d4; font-weight:500; }
+
+    /* Search */
+    .search-bar   { display:flex; gap:1rem; margin-bottom:1rem; }
+    .search-input { flex:1; padding:.75rem 1rem; border:1px solid #ddd; border-radius:6px; font-size:.95rem; }
+    .search-input:focus { outline:none; border-color:#0078d4; box-shadow:0 0 0 2px rgba(0,120,212,.1); }
+
+    /* Table */
+    .table-container { background:white; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th    { text-align:left; padding:1rem; background:#fafafa; font-weight:600; font-size:.85rem; color:#666; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #e0e0e0; }
+    td    { padding:1rem; border-bottom:1px solid #f0f0f0; font-size:.95rem; }
+    tr:hover { background:#fafafa; }
+    .badge         { display:inline-block; padding:.25rem .6rem; background:#e3f2fd; color:#1565c0; border-radius:4px; font-size:.8rem; font-weight:500; }
+    .badge.unknown { background:#fff3e0; color:#e65100; }
+    .guid          { font-family:'Consolas',monospace; font-size:.85rem; color:#666; }
+
+    /* Loading / error */
+    .loading  { text-align:center; padding:3rem; color:#666; }
+    .spinner  { width:40px; height:40px; border:3px solid #f0f0f0; border-top-color:#0078d4; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 1rem; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .error-state { text-align:center; padding:3rem; color:#d83b01; }
+
+    /* Pagination */
+    .pagination         { display:flex; justify-content:space-between; align-items:center; padding:1rem; background:#fafafa; border-top:1px solid #e0e0e0; }
+    .pagination-info    { color:#666; font-size:.9rem; }
+    .pagination-buttons { display:flex; gap:.5rem; }
+    .btn { padding:.5rem 1rem; border:1px solid #ddd; background:white; border-radius:4px; cursor:pointer; font-size:.9rem; }
+    .btn:hover:not(:disabled) { background:#f5f5f5; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* Detail view */
+    .detail-view        { display:none; }
+    .detail-view.active { display:block; }
+    .back-btn  { display:inline-flex; align-items:center; gap:.5rem; padding:.5rem 1rem; background:none; border:none; color:#0078d4; cursor:pointer; font-size:.95rem; margin-bottom:1rem; }
+    .back-btn:hover { text-decoration:underline; }
+    .detail-card    { background:white; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:1.5rem; margin-bottom:1rem; }
+    .detail-card h3 { font-size:1.1rem; margin-bottom:1rem; }
+    .detail-row         { display:flex; padding:.75rem 0; border-bottom:1px solid #f0f0f0; }
+    .detail-row:last-child { border-bottom:none; }
+    .detail-label { width:180px; font-weight:500; color:#666; }
+    .detail-value { flex:1; }
+
+    /* Toast */
+    .toast { position:fixed; bottom:2rem; right:2rem; padding:1rem 1.5rem; background:#323130; color:white; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.15); transform:translateY(100px); opacity:0; transition:all .3s; z-index:1000; }
+    .toast.show  { transform:translateY(0); opacity:1; }
+    .toast.error { background:#d83b01; }
+
+    @media(max-width:768px){
+      .header { padding:1rem; }
+      .container { padding:1rem; }
+      .summary-grid { grid-template-columns:1fr 1fr; }
+      .table-container { overflow-x:auto; }
+    }
+  </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Account-Subscription Mapping</h1>
-        <p>View and manage Azure subscription to account mappings</p>
+
+<div class="header">
+  <h1>Account-Subscription Mapping</h1>
+  <p>View and manage Azure subscription to account mappings</p>
+</div>
+
+<div class="container">
+
+  <!-- ── Summary cards ── -->
+  <div class="summary-grid">
+    <div class="summary-card accounts">
+      <div class="label">Total Accounts</div>
+      <div class="value" id="total-accounts">-</div>
     </div>
-    <div class="container">
-        <div class="summary-grid">
-            <div class="summary-card accounts">
-                <div class="label">Total Accounts</div>
-                <div class="value" id="total-accounts">-</div>
-            </div>
-            <div class="summary-card subscriptions">
-                <div class="label">Mapped Subscriptions</div>
-                <div class="value" id="total-subscriptions">-</div>
-            </div>
-            <div class="summary-card unknown">
-                <div class="label">Unknown Subscriptions</div>
-                <div class="value" id="total-unknown">-</div>
-            </div>
-            <div class="summary-card multi">
-                <div class="label">Accounts with 2+ Subs</div>
-                <div class="value" id="total-multi">-</div>
-            </div>
-        </div>
-        <div id="main-view">
-            <div class="tabs">
-                <button class="tab active" data-tab="accounts">Accounts</button>
-                <button class="tab" data-tab="subscriptions">Subscriptions</button>
-                <button class="tab" data-tab="unknown">Unknown</button>
-            </div>
-            <div class="search-bar">
-                <input type="text" class="search-input" id="search-input" placeholder="Search...">
-            </div>
-            <div class="table-container">
-                <div id="table-content">
-                    <div class="loading"><div class="spinner"></div><p>Loading data...</p></div>
-                </div>
-            </div>
-        </div>
-        <div id="detail-view" class="detail-view">
-            <button class="back-btn" onclick="showMainView()">← Back to list</button>
-            <div class="detail-card">
-                <h3>Account Details</h3>
-                <div id="account-detail"></div>
-            </div>
-            <div class="detail-card">
-                <h3>Subscriptions (<span id="sub-count">0</span>)</h3>
-                <table>
-                    <thead><tr><th>Name</th><th>Subscription GUID</th></tr></thead>
-                    <tbody id="subscriptions-detail"></tbody>
-                </table>
-            </div>
-        </div>
+    <div class="summary-card subscriptions">
+      <div class="label">Mapped Subscriptions</div>
+      <div class="value" id="total-subscriptions">-</div>
     </div>
-    <div class="toast" id="toast"></div>
-    <script>
-        const API_BASE = window.location.origin + '/api';
-        let currentTab = 'accounts';
-        let currentPage = 1;
-        let totalPages = 1;
-        let currentData = [];
-        let searchTimeout = null;
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSummary();
-            loadData();
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelector('.tab.active').classList.remove('active');
-                    tab.classList.add('active');
-                    currentTab = tab.dataset.tab;
-                    currentPage = 1;
-                    loadData();
-                });
-            });
-            document.getElementById('search-input').addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => { currentPage = 1; loadData(); }, 300);
-            });
-        });
-        
-        async function loadSummary() {
-            try {
-                const response = await fetch(API_BASE + '/summary');
-                const data = await response.json();
-                document.getElementById('total-accounts').textContent = data.total_accounts;
-                document.getElementById('total-subscriptions').textContent = data.total_subscriptions;
-                document.getElementById('total-unknown').textContent = data.total_unknown;
-                document.getElementById('total-multi').textContent = data.accounts_with_multiple_subscriptions;
-            } catch (error) {
-                showToast('Failed to load summary: ' + error.message, true);
-            }
+    <div class="summary-card unknown">
+      <div class="label">Unknown Subscriptions</div>
+      <div class="value" id="total-unknown">-</div>
+    </div>
+    <div class="summary-card multi">
+      <div class="label">Accounts with 2+ Subs</div>
+      <div class="value" id="total-multi">-</div>
+    </div>
+  </div>
+
+  <!-- ── Main list view ── -->
+  <div id="main-view">
+    <div class="tabs">
+      <button class="tab active" data-tab="accounts">Accounts</button>
+      <button class="tab"        data-tab="subscriptions">Subscriptions</button>
+      <button class="tab"        data-tab="unknown">Unknown</button>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" class="search-input" id="search-input" placeholder="Search...">
+    </div>
+
+    <div class="table-container">
+      <div id="table-content">
+        <div class="loading"><div class="spinner"></div><p>Loading data...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Account detail view ── -->
+  <div id="detail-view" class="detail-view">
+    <button class="back-btn" onclick="showMainView()">← Back to list</button>
+
+    <div class="detail-card">
+      <h3>Account Details</h3>
+      <div id="account-detail"></div>
+    </div>
+
+    <div class="detail-card">
+      <h3>Subscriptions (<span id="sub-count">0</span>)</h3>
+      <table>
+        <thead><tr><th>Name</th><th>Subscription GUID</th></tr></thead>
+        <tbody id="subscriptions-detail"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /.container -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─────────────────────────────────────────────────
+  // Config
+  // ─────────────────────────────────────────────────
+  const API_BASE = window.location.origin + '/api';
+
+  let currentTab     = 'accounts';
+  let currentPage    = 1;
+  let totalPages     = 1;
+  let currentData    = [];
+  let searchTimeout  = null;
+
+  // ─────────────────────────────────────────────────
+  // Bootstrap
+  // ─────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    loadSummary();
+    loadData();
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelector('.tab.active').classList.remove('active');
+        tab.classList.add('active');
+        currentTab  = tab.dataset.tab;
+        currentPage = 1;
+        document.getElementById('search-input').value = '';
+        loadData();
+      });
+    });
+
+    document.getElementById('search-input').addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => { currentPage = 1; loadData(); }, 300);
+    });
+  });
+
+  // ─────────────────────────────────────────────────
+  // loadSummary — populates all four dashboard cards
+  //
+  // FIX: previously only total_accounts was returned by
+  // the API. Now all four keys are present in the response.
+  //   data.total_accounts
+  //   data.total_subscriptions
+  //   data.total_unknown
+  //   data.accounts_with_multiple_subscriptions
+  // ─────────────────────────────────────────────────
+  async function loadSummary() {
+    try {
+      const response = await fetch(API_BASE + '/summary');
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      document.getElementById('total-accounts')      .textContent = data.total_accounts                       ?? '-';
+      document.getElementById('total-subscriptions') .textContent = data.total_subscriptions                  ?? '-';
+      document.getElementById('total-unknown')       .textContent = data.total_unknown                        ?? '-';
+      document.getElementById('total-multi')         .textContent = data.accounts_with_multiple_subscriptions ?? '-';
+
+    } catch (error) {
+      console.error('Summary fetch failed:', error);
+      ['total-accounts','total-subscriptions','total-unknown','total-multi']
+        .forEach(id => { document.getElementById(id).textContent = 'Err'; });
+      showToast('Failed to load summary: ' + error.message, true);
+    }
+  }
+
+  // ─────────────────────────────────────────────────
+  // loadData — fetches the active tab's paginated data
+  // ─────────────────────────────────────────────────
+  async function loadData() {
+    const tableContent = document.getElementById('table-content');
+    tableContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading data...</p></div>';
+
+    try {
+      const searchParam = document.getElementById('search-input').value;
+      const params      = new URLSearchParams();
+      if (searchParam) params.set('search', searchParam);
+      params.set('page',      currentPage);
+      params.set('page_size', 50);
+
+      let endpoint = '';
+      switch (currentTab) {
+        case 'accounts':      endpoint = API_BASE + '/accounts';      break;
+        case 'subscriptions': endpoint = API_BASE + '/subscriptions'; break;
+        case 'unknown':       endpoint = API_BASE + '/unknown';        break;
+      }
+
+      const response = await fetch(endpoint + '?' + params.toString());
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+      const result   = await response.json();
+      currentData    = result.data || result;
+      totalPages     = result.pagination?.total_pages || 1;
+
+      renderTable(result.pagination);
+
+    } catch (error) {
+      tableContent.innerHTML = `<div class="error-state"><p>⚠ Error: ${error.message}</p></div>`;
+      showToast('Failed to load data: ' + error.message, true);
+    }
+  }
+
+  // ─────────────────────────────────────────────────
+  // renderTable
+  //
+  // FIX: accounts tab referenced item.account_name —
+  // the API now aliases a.name AS account_name so this
+  // stays consistent. Unknown tab now uses item.id
+  // (PK of dbo.subscriptions_unknown) instead of
+  // item.subscription_id which doesn't exist in that table.
+  // ─────────────────────────────────────────────────
+  function renderTable(pagination) {
+    const tableContent = document.getElementById('table-content');
+
+    if (!currentData || currentData.length === 0) {
+      tableContent.innerHTML = '<div class="loading"><p>No data found.</p></div>';
+      return;
+    }
+
+    let html = '<table><thead><tr>';
+    switch (currentTab) {
+      case 'accounts':
+        html += '<th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th></th>';
+        break;
+      case 'subscriptions':
+        html += '<th>Subscription Name</th><th>Account</th><th>Company ID</th><th>Subscription GUID</th>';
+        break;
+      case 'unknown':
+        html += '<th>Subscription Name</th><th>Subscription GUID</th>';
+        break;
+    }
+    html += '</tr></thead><tbody>';
+
+    currentData.forEach(item => {
+      switch (currentTab) {
+        case 'accounts':
+          html += `<tr>
+            <td><strong>${escHtml(item.account_name)}</strong></td>
+            <td>${escHtml(item.company_id)}</td>
+            <td><span class="badge">${item.subscription_count}</span></td>
+            <td><button class="btn" onclick="viewAccount(${item.account_id})">View</button></td>
+          </tr>`;
+          break;
+
+        case 'subscriptions': {
+          const guid = item.subscription_guid || '-';
+          html += `<tr>
+            <td><strong>${escHtml(item.subscription_name)}</strong></td>
+            <td>${escHtml(item.account_name || '-')}</td>
+            <td>${escHtml(item.company_id   || '-')}</td>
+            <td><span class="guid">${escHtml(guid)}</span></td>
+          </tr>`;
+          break;
         }
-        
-        async function loadData() {
-            const tableContent = document.getElementById('table-content');
-            tableContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading data...</p></div>';
-            try {
-                let endpoint = '';
-                const searchParam = document.getElementById('search-input').value;
-                const params = new URLSearchParams();
-                if (searchParam) params.set('search', searchParam);
-                params.set('page', currentPage);
-                params.set('page_size', 50);
-                
-                switch (currentTab) {
-                    case 'accounts': endpoint = API_BASE + '/accounts'; break;
-                    case 'subscriptions': endpoint = API_BASE + '/subscriptions'; break;
-                    case 'unknown': endpoint = API_BASE + '/unknown'; break;
-                }
-                
-                const response = await fetch(endpoint + '?' + params.toString());
-                if (!response.ok) throw new Error('Failed to fetch data');
-                const result = await response.json();
-                currentData = result.data || result;
-                totalPages = result.pagination?.total_pages || 1;
-                renderTable();
-            } catch (error) {
-                tableContent.innerHTML = '<div class="loading"><p>Error: ' + error.message + '</p></div>';
-                showToast('Failed to load data: ' + error.message, true);
-            }
+
+        case 'unknown': {
+          // PK in dbo.subscriptions_unknown is `id`, not subscription_id
+          const uGuid = item.subscription_guid || '-';
+          html += `<tr>
+            <td><strong>${escHtml(item.subscription_name)}</strong></td>
+            <td><span class="guid">${escHtml(uGuid)}</span></td>
+          </tr>`;
+          break;
         }
-        
-        function renderTable() {
-            const tableContent = document.getElementById('table-content');
-            if (!currentData || currentData.length === 0) {
-                tableContent.innerHTML = '<div class="loading"><p>No data found</p></div>';
-                return;
-            }
-            let html = '<table><thead><tr>';
-            switch (currentTab) {
-                case 'accounts': html += '<th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th></th>'; break;
-                case 'subscriptions': html += '<th>Subscription Name</th><th>Account</th><th>Company ID</th><th>Subscription GUID</th>'; break;
-                case 'unknown': html += '<th>Subscription Name</th><th>Subscription GUID</th>'; break;
-            }
-            html += '</tr></thead><tbody>';
-            currentData.forEach(item => {
-                switch (currentTab) {
-                    case 'accounts':
-                        html += '<tr><td><strong>' + item.account_name + '</strong></td><td>' + item.company_id + '</td><td><span class="badge">' + item.subscription_count + '</span></td><td><button class="btn" onclick="viewAccount(' + item.account_id + ')">View</button></td></tr>';
-                        break;
-                    case 'subscriptions':
-                        const guid = item.subscription_guid || '-';
-                        html += '<tr><td><strong>' + item.subscription_name + '</strong></td><td>' + item.account_name + '</td><td>' + item.company_id + '</td><td><span class="guid">' + guid + '</span></td></tr>';
-                        break;
-                    case 'unknown':
-                        const unknownGuid = item.subscription_guid || '-';
-                        html += '<tr><td><strong>' + item.subscription_name + '</strong></td><td><span class="guid">' + unknownGuid + '</span></td></tr>';
-                        break;
-                }
-            });
-            html += '</tbody></table>';
-            html += '<div class="pagination"><div class="pagination-info">Page ' + currentPage + ' of ' + totalPages + '</div><div class="pagination-buttons"><button class="btn" onclick="changePage(-1)" ' + (currentPage === 1 ? 'disabled' : '') + '>Previous</button><button class="btn" onclick="changePage(1)" ' + (currentPage === totalPages ? 'disabled' : '') + '>Next</button></div></div>';
-            tableContent.innerHTML = html;
-        }
-        
-        function changePage(direction) {
-            const newPage = currentPage + direction;
-            if (newPage >= 1 && newPage <= totalPages) { currentPage = newPage; loadData(); }
-        }
-        
-        async function viewAccount(accountId) {
-            try {
-                const response = await fetch(API_BASE + '/accounts/' + accountId);
-                const data = await response.json();
-                document.getElementById('main-view').classList.remove('active');
-                document.getElementById('detail-view').classList.add('active');
-                document.getElementById('account-detail').innerHTML = '<div class="detail-row"><div class="detail-label">Account Name</div><div class="detail-value">' + data.account.account_name + '</div></div><div class="detail-row"><div class="detail-label">Company ID</div><div class="detail-value">' + data.account.company_id + '</div></div>';
-                const subs = data.subscriptions || [];
-                document.getElementById('sub-count').textContent = subs.length;
-                document.getElementById('subscriptions-detail').innerHTML = subs.length === 0 ? '<tr><td colspan="2">No subscriptions</td></tr>' : subs.map(sub => '<tr><td><strong>' + sub.subscription_name + '</strong></td><td><span class="guid">' + (sub.subscription_guid || '-') + '</span></td></tr>').join('');
-            } catch (error) { showToast('Failed to load account: ' + error.message, true); }
-        }
-        
-        function showMainView() {
-            document.getElementById('detail-view').classList.remove('active');
-            document.getElementById('main-view').classList.add('active');
-        }
-        
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = 'toast' + (isError ? ' error' : '');
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-    </script>
+      }
+    });
+
+    html += '</tbody></table>';
+
+    // Pagination bar
+    const totalRecords = pagination?.total_records ?? currentData.length;
+    html += `
+      <div class="pagination">
+        <div class="pagination-info">
+          Page ${currentPage} of ${totalPages} &nbsp;|&nbsp; ${totalRecords} record${totalRecords !== 1 ? 's' : ''}
+        </div>
+        <div class="pagination-buttons">
+          <button class="btn" onclick="changePage(-1)" ${currentPage === 1          ? 'disabled' : ''}>Previous</button>
+          <button class="btn" onclick="changePage(1)"  ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+        </div>
+      </div>`;
+
+    tableContent.innerHTML = html;
+  }
+
+  function changePage(direction) {
+    const newPage = currentPage + direction;
+    if (newPage >= 1 && newPage <= totalPages) {
+      currentPage = newPage;
+      loadData();
+    }
+  }
+
+  // ─────────────────────────────────────────────────
+  // viewAccount — loads the detail panel
+  //
+  // FIX: original code referenced data.account.account_name
+  // The API now returns the name column aliased as account_name,
+  // so this works correctly.
+  // ─────────────────────────────────────────────────
+  async function viewAccount(accountId) {
+    try {
+      const response = await fetch(`${API_BASE}/accounts/${accountId}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
+      document.getElementById('main-view').style.display   = 'none';
+      document.getElementById('detail-view').classList.add('active');
+
+      document.getElementById('account-detail').innerHTML = `
+        <div class="detail-row">
+          <div class="detail-label">Account Name</div>
+          <div class="detail-value">${escHtml(data.account.account_name)}</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Company ID</div>
+          <div class="detail-value">${escHtml(data.account.company_id)}</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Account ID</div>
+          <div class="detail-value">${data.account.account_id}</div>
+        </div>`;
+
+      const subs = data.subscriptions || [];
+      document.getElementById('sub-count').textContent = subs.length;
+      document.getElementById('subscriptions-detail').innerHTML = subs.length === 0
+        ? '<tr><td colspan="2" style="color:#666;text-align:center">No subscriptions linked</td></tr>'
+        : subs.map(sub => `
+            <tr>
+              <td><strong>${escHtml(sub.subscription_name)}</strong></td>
+              <td><span class="guid">${escHtml(sub.subscription_guid || '-')}</span></td>
+            </tr>`).join('');
+
+    } catch (error) {
+      showToast('Failed to load account: ' + error.message, true);
+    }
+  }
+
+  function showMainView() {
+    document.getElementById('detail-view').classList.remove('active');
+    document.getElementById('main-view').style.display = '';
+  }
+
+  // ─────────────────────────────────────────────────
+  // Utilities
+  // ─────────────────────────────────────────────────
+  function showToast(message, isError = false) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className   = 'toast' + (isError ? ' error' : '');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  // Basic XSS protection for dynamic HTML rendering
+  function escHtml(str) {
+    if (str === null || str === undefined) return '-';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
 </body>
 </html>
