@@ -395,7 +395,7 @@ app.http('unknown-subscriptions', {
 app.http('accounts-search', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'accounts/search',
+  route: 'accounts/{accountId:int}',
   handler: async (request, context) => {
     try {
       const q = (request.query.get('q') || '').trim();
