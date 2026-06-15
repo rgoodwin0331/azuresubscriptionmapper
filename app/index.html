@@ -617,7 +617,7 @@ function onAccountSearch(val) {
 
 async function fetchAccounts(q) {
   try {
-    const r = await fetch(`${API}/accounts/search?q=${encodeURIComponent(q)}`);
+    const r = await fetch(`${API}/accounts-search?q=${encodeURIComponent(q)}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     acctItems    = d.accounts || [];
