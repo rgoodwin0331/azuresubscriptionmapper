@@ -174,11 +174,11 @@ app.http('accounts', {
 app.http('account-detail', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'accounts/{accountId}',
+  route: 'accounts/{id}',
   handler: async (request, context) => {
     try {
-      const pool      = await getPool();
-      const accountId = parseInt(request.params.accountId, 10);
+      const pool = await getPool();
+      const accountId = parseInt(request.params.id, 10);
 
       if (isNaN(accountId)) {
         return {
@@ -188,10 +188,11 @@ app.http('account-detail', {
         };
       }
 
+      // 1) Account metadata
       const accountResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
-          SELECT account_id, [name] AS account_name, company_id
+          SELECT account_id, [name] AS name, company_id, tenant_id, created_at
           FROM dbo.accounts
           WHERE account_id = @accountId
         `);
@@ -204,6 +205,9 @@ app.http('account-detail', {
         };
       }
 
+      const account = accountResult.recordset[0];
+
+      // 2) Subscriptions for this account
       const subsResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
@@ -213,23 +217,48 @@ app.http('account-detail', {
           ORDER BY subscription_name
         `);
 
-      const account = accountResult.recordset[0];
+      const subscriptions = subsResult.recordset;
+
+      // 3) Consumed products (SKUs) directly linked to this account
+      const skusResult = await pool.request()
+        .input('accountId', sql.Int, accountId)
+        .query(`
+          SELECT id,
+                 u_service_offering,
+                 u_product_id,
+                 u_qty_to_invoice,
+                 u_recurring_amount
+          FROM dbo.sku_msaz001
+          WHERE account_id = @accountId
+          ORDER BY u_service_offering, u_product_id
+        `);
+
+      const skus = skusResult.recordset;
+      const totalRecurring = skus.reduce(
+        (sum, s) => sum + (parseFloat(s.u_recurring_amount) || 0), 0
+      );
+
       return {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          account_id:    account.account_id,
-          account_name:  account.account_name,
-          company_id:    account.company_id,
-          subscriptions: subsResult.recordset
+          account,
+          subscriptions,
+          skus,
+          meta: {
+            subscription_count: subscriptions.length,
+            sku_count: skus.length,
+            total_monthly_recurring: totalRecurring
+          }
         })
       };
-    } catch (error) {
-      context.error('Account detail error:', error);
+
+    } catch (err) {
+      context.error('account-detail error:', err);
       return {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: error.message })
+        body: JSON.stringify({ error: 'Internal server error', detail: err.message })
       };
     }
   }

@@ -563,11 +563,20 @@ function changePage(dir) {
       }
     }
 
-    function renderAccountDetail({ account, subscriptions, skus, meta }) {
-      const fmt = (val) => val != null ? val : '—';
-      const fmtCurr = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num || 0);
+        function renderAccountDetail(payload) {
+      // Guard: ensure API returned expected shape
+      if (!payload || !payload.account) {
+        document.getElementById('detail-overview').innerHTML =
+          '<p class="error">Unexpected API response: ' + JSON.stringify(payload) + '</p>';
+        return;
+      }
 
-      // 1. Render Overview
+      const { account, subscriptions = [], skus = [], meta = {} } = payload;
+      const fmt = (val) => (val != null && val !== '') ? val : '—';
+      const fmtCurr = (num) =>
+        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num || 0);
+
+      // 1. Overview grid
       document.getElementById('detail-overview').innerHTML = `
         <div class="detail-info-grid">
           <div class="detail-info-item">
@@ -589,33 +598,43 @@ function changePage(dir) {
         </div>
       `;
 
-      // 2. Render Subscriptions
-      document.getElementById('sub-count-badge').textContent = meta.subscription_count;
+      // 2. Subscriptions
+      document.getElementById('sub-count-badge').textContent = subscriptions.length;
       const subsBody = document.getElementById('detail-subs-body');
-      subsBody.innerHTML = subscriptions.length ? '' : '<tr><td colspan="2">No subscriptions mapped.</td></tr>';
-      subscriptions.forEach(s => {
-        subsBody.insertAdjacentHTML('beforeend', `
-          <tr>
-            <td><strong>${s.subscription_name}</strong></td>
-            <td class="mono">${s.subscription_guid}</td>
-          </tr>
-        `);
-      });
+      subsBody.innerHTML = '';
+      if (!subscriptions.length) {
+        subsBody.innerHTML = '<tr><td colspan="2" class="no-data">No subscriptions mapped.</td></tr>';
+      } else {
+        subscriptions.forEach(s => {
+          subsBody.insertAdjacentHTML('beforeend', `
+            <tr>
+              <td><strong>${fmt(s.subscription_name)}</strong></td>
+              <td class="mono">${fmt(s.subscription_guid)}</td>
+            </tr>
+          `);
+        });
+      }
 
-      // 3. Render SKUs (Consumed Products)
-      document.getElementById('sku-count-badge').textContent = meta.sku_count;
+      // 3. Consumed Products (SKUs)
+      document.getElementById('sku-count-badge').textContent = skus.length;
       const skusBody = document.getElementById('detail-skus-body');
-      skusBody.innerHTML = skus.length ? '' : '<tr><td colspan="4">No products found for this account.</td></tr>';
-      skus.forEach(k => {
-        skusBody.insertAdjacentHTML('beforeend', `
-          <tr>
-            <td>${fmt(k.u_service_offering)}</td>
-            <td>${fmt(k.u_product_id)}</td>
-            <td style="text-align:center">${fmt(k.u_qty_to_invoice)}</td>
-            <td class="price-col">${fmtCurr(k.u_recurring_amount)}</td>
-          </tr>
-        `);
-      });
+      skusBody.innerHTML = '';
+      if (!skus.length) {
+        skusBody.innerHTML = '<tr><td colspan="4" class="no-data">No products found for this account.</td></tr>';
+      } else {
+        skus.forEach(k => {
+          skusBody.insertAdjacentHTML('beforeend', `
+            <tr>
+              <td>${fmt(k.u_service_offering)}</td>
+              <td>${fmt(k.u_product_id)}</td>
+              <td style="text-align:center">${fmt(k.u_qty_to_invoice)}</td>
+              <td class="price-col">${fmtCurr(k.u_recurring_amount)}</td>
+            </tr>
+          `);
+        });
+      }
+
+      // 4. Total recurring footer
       document.getElementById('total-recurring-val').textContent = fmtCurr(meta.total_monthly_recurring);
     }
 
