@@ -117,6 +117,110 @@
       .modal { margin:1rem; max-width:100%; }
       .table-wrapper { overflow-x:auto; }
     }
+  
+
+/* Account Detail View Styles */
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.detail-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.detail-info-item.highlight {
+  background: #f0fdf4;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #bbf7d0;
+}
+.detail-info-item.highlight .detail-value {
+  color: #166534;
+  font-size: 1.1rem;
+}
+.detail-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  font-weight: 600;
+}
+.detail-value {
+  font-size: 0.95rem;
+  color: #111827;
+  font-weight: 500;
+}
+.detail-value.mono {
+  font-family: monospace;
+  font-size: 0.82rem;
+  color: #374151;
+}
+.sub-header-row td {
+  background: #f0f4ff;
+  padding: 0.6rem 0.75rem;
+  border-top: 2px solid #c7d2fe;
+}
+.guid-badge {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 0.72rem;
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  margin-left: 0.6rem;
+}
+.sku-count-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  margin-left: 0.4rem;
+}
+.sub-total {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #065f46;
+  background: #dcfce7;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.sku-col-header td {
+  background: #f9fafb;
+  font-size: 0.78rem;
+  color: #6b7280;
+  padding: 0.3rem 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.sku-row td {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: top;
+}
+.sku-row:hover td {
+  background: #fafafa;
+}
+.price-cell {
+  font-family: monospace;
+  font-size: 0.83rem;
+  color: #065f46;
+  white-space: nowrap;
+}
+.no-sku-row td, .no-data-sub {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.75rem;
+}
+
   </style>
 </head>
 <body>
@@ -484,8 +588,22 @@ function changePage(dir) {
 // Detail view
 // ─────────────────────────────────────────────────────────
 async function openDetail(accountId) {
+  document.getElementById('list-view').style.display = 'none';
+  document.getElementById('detail-view').style.display = 'block';
+  document.getElementById('detail-content').innerHTML = '<p class="loading">Loading…</p>';
+  document.getElementById('detail-subs-body').innerHTML = '';
+  document.getElementById('detail-sub-count').textContent = '0';
+
   try {
-    const r = await fetch(`${API}/accounts/${accountId}`);
+    const res = await fetch(`/api/accounts/${accountId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderAccountDetail(data);
+  } catch (err) {
+    document.getElementById('detail-content').innerHTML =
+      `<p class="error-msg">Failed to load account details: ${err.message}</p>`;
+  }
+}/accounts/${accountId}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
 
@@ -511,8 +629,106 @@ async function openDetail(accountId) {
 }
 
 function closeDetail() {
-  document.getElementById('detail-view').classList.remove('active');
-  document.getElementById('list-view').style.display = '';
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('list-view').style.display = 'block';
+}
+
+// Render account info card
+function renderAccountDetail({ account, subscriptions, meta }) {
+  const fmtCurrency = (v) => v != null ? `$${parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '—';
+
+  // Account info grid
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-info-grid">
+      <div class="detail-info-item">
+        <span class="detail-label">Account Name</span>
+        <span class="detail-value">${esc(account.account_name ?? '')}</span>
+      </div>
+      <div class="detail-info-item">
+        <span class="detail-label">Company ID</span>
+        <span class="detail-value">${esc(account.company_id ?? '—')}</span>
+      </div>
+      <div class="detail-info-item">
+        <span class="detail-label">Tenant ID</span>
+        <span class="detail-value mono">${esc(account.tenant_id ?? '—')}</span>
+      </div>
+      <div class="detail-info-item">
+        <span class="detail-label">Created</span>
+        <span class="detail-value">${account.created_at ? new Date(account.created_at).toLocaleDateString() : '—'}</span>
+      </div>
+      <div class="detail-info-item">
+        <span class="detail-label">Subscriptions</span>
+        <span class="detail-value">${meta.subscription_count}</span>
+      </div>
+      <div class="detail-info-item">
+        <span class="detail-label">Total SKU Assignments</span>
+        <span class="detail-value">${meta.total_sku_assignments}</span>
+      </div>
+      <div class="detail-info-item highlight">
+        <span class="detail-label">Est. Monthly Cost</span>
+        <span class="detail-value">${fmtCurrency(meta.total_recurring_monthly)}</span>
+      </div>
+    </div>
+  `;
+
+  // Subscriptions + SKUs table
+  document.getElementById('detail-sub-count').textContent = meta.subscription_count;
+  const tbody = document.getElementById('detail-subs-body');
+  tbody.innerHTML = '';
+
+  if (!subscriptions.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="no-data">No subscriptions found.</td></tr>';
+    return;
+  }
+
+  for (const sub of subscriptions) {
+    // Subscription header row
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr class="sub-header-row">
+        <td colspan="4">
+          <strong>${esc(sub.subscription_name)}</strong>
+          <span class="guid-badge">${sub.subscription_guid}</span>
+          <span class="sku-count-badge">${sub.skus.length} SKU${sub.skus.length !== 1 ? 's' : ''}</span>
+          ${sub.total_recurring > 0 ? `<span class="sub-total">${fmtCurrency(sub.total_recurring)}/mo</span>` : ''}
+        </td>
+      </tr>
+    `);
+
+    if (!sub.skus.length) {
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr class="no-sku-row">
+          <td colspan="4" class="no-data-sub">No SKUs assigned to this subscription.</td>
+        </tr>
+      `);
+    } else {
+      // Column header for SKUs
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr class="sku-col-header">
+          <td><em>Service Offering</em></td>
+          <td><em>Product ID</em></td>
+          <td><em>Qty</em></td>
+          <td><em>Recurring</em></td>
+        </tr>
+      `);
+
+      for (const sku of sub.skus) {
+        tbody.insertAdjacentHTML('beforeend', `
+          <tr class="sku-row">
+            <td>${esc(sku.service_offering ?? '—')}</td>
+            <td>${esc(sku.product_id ?? '—')}</td>
+            <td>${sku.qty_to_invoice ?? '—'}</td>
+            <td class="price-cell">${fmtCurrency(sku.recurring_amount)}</td>
+          </tr>
+        `);
+      }
+    }
+  }
+}
+
+// HTML escape helper
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ─────────────────────────────────────────────────────────
