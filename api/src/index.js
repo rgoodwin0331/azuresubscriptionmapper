@@ -192,7 +192,7 @@ app.http('account-detail', {
       const accountResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
-          SELECT account_id, [name] AS name, company_id, tenant_id
+          SELECT account_id, [name] AS name, company_id
           FROM dbo.accounts
           WHERE account_id = @accountId
         `);
