@@ -188,11 +188,11 @@ app.http('account-detail', {
         };
       }
 
-      // 1) Account metadata
+      // 1) Account (no created_at column)
       const accountResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
-          SELECT account_id, [name] AS name, company_id, tenant_id, created_at
+          SELECT account_id, [name] AS name, company_id, tenant_id
           FROM dbo.accounts
           WHERE account_id = @accountId
         `);
@@ -207,7 +207,7 @@ app.http('account-detail', {
 
       const account = accountResult.recordset[0];
 
-      // 2) Subscriptions for this account
+      // 2) Subscriptions for the account
       const subsResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
@@ -219,24 +219,19 @@ app.http('account-detail', {
 
       const subscriptions = subsResult.recordset;
 
-      // 3) Consumed products (SKUs) directly linked to this account
+      // 3) Consumed products (SKUs) for the account
       const skusResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
-          SELECT id,
-                 u_service_offering,
-                 u_product_id,
-                 u_qty_to_invoice,
-                 u_recurring_amount
+          SELECT id, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
           FROM dbo.sku_msaz001
           WHERE account_id = @accountId
           ORDER BY u_service_offering, u_product_id
         `);
 
       const skus = skusResult.recordset;
-      const totalRecurring = skus.reduce(
-        (sum, s) => sum + (parseFloat(s.u_recurring_amount) || 0), 0
-      );
+
+      const totalRecurring = skus.reduce((sum, s) => sum + (parseFloat(s.u_recurring_amount) || 0), 0);
 
       return {
         status: 200,
@@ -263,6 +258,8 @@ app.http('account-detail', {
     }
   }
 });
+
+
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/subscriptions?page=&limit=&search=
