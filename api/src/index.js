@@ -25,9 +25,9 @@ const getPool = async () => {
 // Pagination helper
 // ─────────────────────────────────────────────────────────────
 const getPagination = (request) => {
-  const page     = Math.max(1, parseInt(request.query.get('page')  || '1',  10));
+  const page = Math.max(1, parseInt(request.query.get('page') || '1', 10));
   const pageSize = Math.max(1, parseInt(request.query.get('limit') || '25', 10));
-  const offset   = (page - 1) * pageSize;
+  const offset = (page - 1) * pageSize;
   return { page, pageSize, offset };
 };
 
@@ -113,10 +113,10 @@ app.http('accounts', {
       const search = (request.query.get('search') || '').trim();
 
       const countReq = pool.request();
-      const dataReq  = pool.request();
+      const dataReq = pool.request();
 
       let countQuery = `SELECT COUNT(*) AS total FROM dbo.accounts`;
-      let dataQuery  = `
+      let dataQuery = `
         SELECT
           a.account_id,
           a.[name]       AS account_name,
@@ -128,9 +128,9 @@ app.http('accounts', {
 
       if (search) {
         countQuery += ` WHERE [name] LIKE @search`;
-        dataQuery  += ` WHERE a.[name] LIKE @search`;
+        dataQuery += ` WHERE a.[name] LIKE @search`;
         countReq.input('search', sql.NVarChar, `%${search}%`);
-        dataReq.input('search',  sql.NVarChar, `%${search}%`);
+        dataReq.input('search', sql.NVarChar, `%${search}%`);
       }
 
       dataQuery += `
@@ -139,18 +139,18 @@ app.http('accounts', {
         OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
       `;
 
-      dataReq.input('offset',   sql.Int, offset);
+      dataReq.input('offset', sql.Int, offset);
       dataReq.input('pageSize', sql.Int, pageSize);
 
       const countResult = await countReq.query(countQuery);
-      const dataResult  = await dataReq.query(dataQuery);
-      const total       = countResult.recordset[0].total;
+      const dataResult = await dataReq.query(dataQuery);
+      const total = countResult.recordset[0].total;
 
       return {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          data:       dataResult.recordset,
+          data: dataResult.recordset,
           total,
           page,
           totalPages: Math.ceil(total / pageSize)
@@ -281,7 +281,7 @@ app.http('subscriptions-list', {
       const search = (request.query.get('search') || '').trim();
 
       const countReq = pool.request();
-      const dataReq  = pool.request();
+      const dataReq = pool.request();
 
       let countQuery = `
         SELECT COUNT(*) AS total
@@ -307,9 +307,9 @@ app.http('subscriptions-list', {
               OR a.company_id        LIKE @search)
         `;
         countQuery += whereClause;
-        dataQuery  += whereClause;
+        dataQuery += whereClause;
         countReq.input('search', sql.NVarChar, `%${search}%`);
-        dataReq.input('search',  sql.NVarChar, `%${search}%`);
+        dataReq.input('search', sql.NVarChar, `%${search}%`);
       }
 
       dataQuery += `
@@ -317,18 +317,18 @@ app.http('subscriptions-list', {
         OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
       `;
 
-      dataReq.input('offset',   sql.Int, offset);
+      dataReq.input('offset', sql.Int, offset);
       dataReq.input('pageSize', sql.Int, pageSize);
 
       const countResult = await countReq.query(countQuery);
-      const dataResult  = await dataReq.query(dataQuery);
-      const total       = countResult.recordset[0].total;
+      const dataResult = await dataReq.query(dataQuery);
+      const total = countResult.recordset[0].total;
 
       return {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          data:       dataResult.recordset,
+          data: dataResult.recordset,
           total,
           page,
           totalPages: Math.ceil(total / pageSize)
@@ -365,10 +365,10 @@ app.http('unknown-subscriptions', {
       const search = (request.query.get('search') || '').trim();
 
       const countReq = pool.request();
-      const dataReq  = pool.request();
+      const dataReq = pool.request();
 
       let countQuery = `SELECT COUNT(*) AS total FROM dbo.subscriptions_unknown`;
-      let dataQuery  = `
+      let dataQuery = `
         SELECT id, subscription_name, subscription_guid
         FROM dbo.subscriptions_unknown
       `;
@@ -379,9 +379,9 @@ app.http('unknown-subscriptions', {
               OR subscription_guid LIKE @search)
         `;
         countQuery += whereClause;
-        dataQuery  += whereClause;
+        dataQuery += whereClause;
         countReq.input('search', sql.NVarChar, `%${search}%`);
-        dataReq.input('search',  sql.NVarChar, `%${search}%`);
+        dataReq.input('search', sql.NVarChar, `%${search}%`);
       }
 
       dataQuery += `
@@ -389,18 +389,18 @@ app.http('unknown-subscriptions', {
         OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
       `;
 
-      dataReq.input('offset',   sql.Int, offset);
+      dataReq.input('offset', sql.Int, offset);
       dataReq.input('pageSize', sql.Int, pageSize);
 
       const countResult = await countReq.query(countQuery);
-      const dataResult  = await dataReq.query(dataQuery);
-      const total       = countResult.recordset[0].total;
+      const dataResult = await dataReq.query(dataQuery);
+      const total = countResult.recordset[0].total;
 
       return {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          data:       dataResult.recordset,
+          data: dataResult.recordset,
           total,
           page,
           totalPages: Math.ceil(total / pageSize)
@@ -482,8 +482,8 @@ app.http('create-mapping', {
 
       // ── Input validation ──
       const missing = [];
-      if (!account_name?.trim())      missing.push('account_name');
-      if (!company_id?.trim())        missing.push('company_id');
+      if (!account_name?.trim()) missing.push('account_name');
+      if (!company_id?.trim()) missing.push('company_id');
       if (!subscription_name?.trim()) missing.push('subscription_name');
       if (!subscription_guid?.trim()) missing.push('subscription_guid');
 
@@ -504,9 +504,9 @@ app.http('create-mapping', {
       }
 
       const acctName = account_name.trim();
-      const compId   = company_id.trim();
-      const subName  = subscription_name.trim();
-      const subGuid  = subscription_guid.trim().toLowerCase();
+      const compId = company_id.trim();
+      const subName = subscription_name.trim();
+      const subGuid = subscription_guid.trim().toLowerCase();
 
       const pool = await getPool();
 
@@ -549,7 +549,7 @@ app.http('create-mapping', {
       await transaction.begin();
       try {
         const insertAcct = await new sql.Request(transaction)
-          .input('name',       sql.NVarChar, acctName)
+          .input('name', sql.NVarChar, acctName)
           .input('company_id', sql.NVarChar, compId)
           .query(`
             INSERT INTO dbo.accounts ([name], company_id)
@@ -560,7 +560,7 @@ app.http('create-mapping', {
         const newAccountId = insertAcct.recordset[0].account_id;
 
         await new sql.Request(transaction)
-          .input('account_id',        sql.Int,      newAccountId)
+          .input('account_id', sql.Int, newAccountId)
           .input('subscription_name', sql.NVarChar, subName)
           .input('subscription_guid', sql.NVarChar, subGuid)
           .query(`
@@ -574,10 +574,10 @@ app.http('create-mapping', {
           status: 201,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message:    'Account and subscription created successfully.',
+            message: 'Account and subscription created successfully.',
             account_id: newAccountId,
             account_name: acctName,
-            company_id:   compId,
+            company_id: compId,
             subscription_name: subName,
             subscription_guid: subGuid
           })
@@ -641,7 +641,7 @@ app.http('add-subscription', {
         };
       }
 
-      const acctId  = parseInt(account_id, 10);
+      const acctId = parseInt(account_id, 10);
       const subName = subscription_name.trim();
       const subGuid = subscription_guid.trim().toLowerCase();
 
@@ -677,7 +677,7 @@ app.http('add-subscription', {
 
       // ── Insert ──
       const insertResult = await pool.request()
-        .input('account_id',        sql.Int,      acctId)
+        .input('account_id', sql.Int, acctId)
         .input('subscription_name', sql.NVarChar, subName)
         .input('subscription_guid', sql.NVarChar, subGuid)
         .query(`
@@ -686,17 +686,17 @@ app.http('add-subscription', {
           SELECT SCOPE_IDENTITY() AS subscription_id;
         `);
 
-      const newSubId   = insertResult.recordset[0]?.subscription_id;
-      const acctName   = acctCheck.recordset[0].account_name;
+      const newSubId = insertResult.recordset[0]?.subscription_id;
+      const acctName = acctCheck.recordset[0].account_name;
 
       return {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message:           'Subscription added successfully.',
-          subscription_id:   newSubId,
-          account_id:        acctId,
-          account_name:      acctName,
+          message: 'Subscription added successfully.',
+          subscription_id: newSubId,
+          account_id: acctId,
+          account_name: acctName,
           subscription_name: subName,
           subscription_guid: subGuid
         })
