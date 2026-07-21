@@ -219,12 +219,16 @@ app.http('account-detail', {
 
       const subscriptions = subsResult.recordset;
 
-      // 3) Consumed products (SKUs) for the account
+      // 3) Consumed products (SKUs) for the account - from BOTH sku_msaz001 AND sku_msaz001vdc
       const skusResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
-          SELECT id, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
+          SELECT id, 'MSAZ001' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
           FROM dbo.sku_msaz001
+          WHERE account_id = @accountId
+          UNION ALL
+          SELECT id, 'MSAZ001VDC' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
+          FROM dbo.sku_msaz001vdc
           WHERE account_id = @accountId
           ORDER BY u_service_offering, u_product_id
         `);

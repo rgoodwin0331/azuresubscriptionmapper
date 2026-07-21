@@ -679,7 +679,25 @@
       background: #f9fafb;
       font-weight: bold;
     }
-  </style>
+  
+/* Source badges for SKU table */
+.source-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.source-msaz {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.source-vdc {
+  background: #fef3c7;
+  color: #92400e;
+}
+</style>
 </head>
 
 <body>
@@ -1167,6 +1185,7 @@
           skus.forEach(k => {
             skusBody.insertAdjacentHTML('beforeend', `
             <tr>
+              <td><span class="source-badge ${k.source_table === 'MSAZ001VDC' ? 'source-vdc' : 'source-msaz'}">${fmt(k.source_table)}</span></td>
               <td>${fmt(k.u_service_offering)}</td>
               <td>${fmt(k.u_product_id)}</td>
               <td style="text-align:center">${fmt(k.u_qty_to_invoice)}</td>
