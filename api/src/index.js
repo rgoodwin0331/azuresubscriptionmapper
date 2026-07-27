@@ -133,6 +133,12 @@ app.http('accounts', {
             FROM dbo.sku_msaz001vdc sk
             WHERE sk.account_id = a.account_id
           ), 0)
+          +
+          ISNULL((
+            SELECT SUM(ISNULL(u_recurring_amount, 0))
+            FROM dbo.sku_msaz002 sk
+            WHERE sk.account_id = a.account_id
+          ), 0)
           AS total_recurring
         FROM dbo.accounts a
         LEFT JOIN dbo.subscriptions s ON a.account_id = s.account_id
@@ -231,12 +237,20 @@ app.http('account-detail', {
 
       const subscriptions = subsResult.recordset;
 
-      // 3) Consumed products (SKUs) for the account
+      // 3) Consumed products (SKUs) for the account - UNION ALL across all three SKU tables
       const skusResult = await pool.request()
         .input('accountId', sql.Int, accountId)
         .query(`
-          SELECT id, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
+          SELECT id, 'MSAZ001' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
           FROM dbo.sku_msaz001
+          WHERE account_id = @accountId
+          UNION ALL
+          SELECT id, 'MSAZ001VDC' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
+          FROM dbo.sku_msaz001vdc
+          WHERE account_id = @accountId
+          UNION ALL
+          SELECT id, 'MSAZ002' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
+          FROM dbo.sku_msaz002
           WHERE account_id = @accountId
           ORDER BY u_service_offering, u_product_id
         `);

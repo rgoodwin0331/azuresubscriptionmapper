@@ -620,6 +620,32 @@
       font-size: 1.1rem;
     }
 
+    /* ── Source Badges ── */
+    .source-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .source-badge.msaz001 {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+    .source-badge.msaz001vdc {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .source-badge.msaz002 {
+      background: #ede9fe;
+      color: #5b21b6;
+      border: 1px solid #c4b5fd;
+    }
+
     .section-header {
       border-bottom: 2px solid #e5e7eb;
       margin: 1.5rem 0 1rem;
@@ -789,12 +815,13 @@
                   <th>Product ID</th>
                   <th style="text-align:center">Qty</th>
                   <th style="text-align:right">Recurring Amount</th>
+                  <th>Source</th>
                 </tr>
               </thead>
               <tbody id="detail-skus-body"></tbody>
               <tfoot>
                 <tr class="total-row">
-                  <td colspan="3" style="text-align:right">Total Monthly Recurring:</td>
+                  <td colspan="4" style="text-align:right">Total Monthly Recurring:</td>
                   <td id="total-recurring-val" class="price-col"></td>
                 </tr>
               </tfoot>
@@ -1167,15 +1194,18 @@
         const skusBody = document.getElementById('detail-skus-body');
         skusBody.innerHTML = '';
         if (!skus.length) {
-          skusBody.innerHTML = '<tr><td colspan="4" class="no-data">No products found for this account.</td></tr>';
+          skusBody.innerHTML = '<tr><td colspan="5" class="no-data">No products found for this account.</td></tr>';
         } else {
           skus.forEach(k => {
+            const srcClass = (k.source_table || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const srcLabel = k.source_table || '—';
             skusBody.insertAdjacentHTML('beforeend', `
             <tr>
               <td>${fmt(k.u_service_offering)}</td>
               <td>${fmt(k.u_product_id)}</td>
               <td style="text-align:center">${fmt(k.u_qty_to_invoice)}</td>
               <td class="price-col">${fmtCurr(k.u_recurring_amount)}</td>
+              <td><span class="source-badge ${srcClass}">${srcLabel}</span></td>
             </tr>
           `);
           });
