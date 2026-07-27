@@ -645,7 +645,16 @@
       color: #5b21b6;
       border: 1px solid #c4b5fd;
     }
-      .source-badge.msaz002lx { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .source-badge.msaz002lx {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .source-badge.msaz003 {
+      background: #ffedd5;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+    }
 
     .section-header {
       border-bottom: 2px solid #e5e7eb;
@@ -706,40 +715,7 @@
       background: #f9fafb;
       font-weight: bold;
     }
-  
-    /* ── Sortable table headers ── */
-    th.sortable {
-      cursor: pointer;
-      user-select: none;
-      position: relative;
-      padding-right: 1.5rem;
-    }
-    th.sortable:hover {
-      background: #e8f0fe;
-      color: #0078d4;
-    }
-    th.sortable::after {
-      content: '⇅';
-      position: absolute;
-      right: .4rem;
-      top: 50%;
-      transform: translateY(-50%);
-      opacity: .3;
-      font-size: .8rem;
-    }
-    th.sort-asc::after {
-      content: '↑';
-      opacity: 1;
-      color: #0078d4;
-      font-weight: 700;
-    }
-    th.sort-desc::after {
-      content: '↓';
-      opacity: 1;
-      color: #0078d4;
-      font-weight: 700;
-    }
-</style>
+  </style>
 </head>
 
 <body>
@@ -964,10 +940,6 @@
       let totalPages = 1;
       let searchTimer = null;
 
-      // Sort state for Accounts tab
-      let sortCol = null;
-      let sortDir = 'asc';
-
       // Typeahead state
       let acctTimer = null;
       let acctItems = [];
@@ -987,8 +959,6 @@
             tab.classList.add('active');
             currentTab = tab.dataset.tab;
             currentPage = 1;
-            sortCol = null;
-            sortDir = 'asc';
             document.getElementById('search-input').value = '';
             loadData();
           });
@@ -1095,27 +1065,6 @@
           const n = parseFloat(v) || 0;
           return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
         };
-
-        // Apply client-side sort if a sort column is selected
-        if (sortCol) {
-          data = [...data].sort((a, b) => {
-            let av, bv;
-            if (sortCol === 'account_name') { av = String(a.account_name ?? '').toLowerCase(); bv = String(b.account_name ?? '').toLowerCase(); }
-            else if (sortCol === 'subscription_count') { av = a.subscription_count ?? 0; bv = b.subscription_count ?? 0; }
-            else if (sortCol === 'total_recurring') { av = parseFloat(a.total_recurring) || 0; bv = parseFloat(b.total_recurring) || 0; }
-            else return 0;
-            if (av < bv) return sortDir === 'asc' ? -1 : 1;
-            if (av > bv) return sortDir === 'asc' ? 1 : -1;
-            return 0;
-          });
-        }
-
-        // Build sort indicator class
-        const sortClass = (col) => {
-          if (sortCol !== col) return 'sortable';
-          return sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
-        };
-
         const rows = data.map(a => `
     <tr style="cursor:pointer;" onclick="openDetail(${a.account_id})">
       <td>${esc(a.account_name ?? '')}</td>
@@ -1126,27 +1075,9 @@
     </tr>`).join('');
         document.getElementById('table-container').innerHTML = `
     <table>
-      <thead><tr>
-        <th class="${sortClass('account_name')}" onclick="sortBy('account_name')">Account Name</th>
-        <th>Company ID</th>
-        <th class="${sortClass('subscription_count')}" onclick="sortBy('subscription_count')">Subscriptions</th>
-        <th class="${sortClass('total_recurring')}" onclick="sortBy('total_recurring')">Monthly Recurring</th>
-        <th>Account ID</th>
-      </tr></thead>
+      <thead><tr><th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th>Monthly Recurring</th><th>Account ID</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-      }
-
-      function sortBy(col) {
-        if (sortCol === col) {
-          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-        } else {
-          sortCol = col;
-          sortDir = 'asc';
-        }
-        // Re-render the current data without refetching
-        // We need to re-fetch to get the current page data, then sort client-side
-        loadData(document.getElementById('search-input').value);
       }
 
       function renderSubscriptions(data) {
