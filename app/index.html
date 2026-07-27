@@ -656,7 +656,9 @@
       border: 1px solid #fdba74;
     }
 
-    .section-header {
+    
+.source-badge.msaz003r { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; } /* red */
+.section-header {
       border-bottom: 2px solid #e5e7eb;
       margin: 1.5rem 0 1rem;
       padding-bottom: 0.5rem;
@@ -715,7 +717,11 @@
       background: #f9fafb;
       font-weight: bold;
     }
-  </style>
+  
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { background: #eff6ff; }
+.sort-ind { opacity: .7; margin-left: 6px; font-size: .9em; }
+</style>
 </head>
 
 <body>
@@ -1075,7 +1081,41 @@
         if (window._lastAccountsData) renderAccounts(window._lastAccountsData);
       }
 
-      function renderAccounts(data) {
+      
+// ---- Accounts table sorting (client-side, current page) ----
+let acctSortKey = null; // 'name' | 'subscriptions' | 'total_recurring'
+let acctSortDir = 'asc';
+
+function toggleAcctSort(key) {
+  if (acctSortKey === key) {
+    acctSortDir = (acctSortDir === 'asc') ? 'desc' : 'asc';
+  } else {
+    acctSortKey = key;
+    acctSortDir = (key === 'name') ? 'asc' : 'desc';
+  }
+  renderAccounts();
+}
+
+function acctSortIndicator(key) {
+  if (acctSortKey !== key) return '⇅';
+  return acctSortDir === 'asc' ? '↑' : '↓';
+}
+
+function applyAcctSort(rows) {
+  if (!acctSortKey) return rows;
+  const dir = acctSortDir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = a?.[acctSortKey];
+    const bv = b?.[acctSortKey];
+    if (acctSortKey === 'name') {
+      return dir * String(av ?? '').localeCompare(String(bv ?? ''), undefined, { sensitivity: 'base' });
+    }
+    const an = Number(av ?? 0);
+    const bn = Number(bv ?? 0);
+    return dir * (an - bn);
+  });
+}
+function renderAccounts(data) {
         window._lastAccountsData = data;
         const fmtCurr = (v) => {
           const n = parseFloat(v) || 0;
@@ -1130,7 +1170,7 @@
     </tr>`).join('');
         document.getElementById('table-container').innerHTML = `
     <table>
-      <thead><tr><th>Subscription Name</th><th>Subscription GUID</th><th>Account Name</th><th>Company ID</th></tr></thead>
+      <thead><tr><th>Subscription Name</th><th>Subscription GUID</th><th class="sortable" onclick="toggleAcctSort('name')">Account Name <span class="sort-ind">${acctSortIndicator('name')}</span></th><th>Company ID</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
       }

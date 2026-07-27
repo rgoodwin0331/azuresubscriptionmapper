@@ -151,7 +151,13 @@ app.http('accounts', {
             FROM dbo.sku_msaz003 sk
             WHERE sk.account_id = a.account_id
           ), 0)
-          AS total_recurring
+          
+            + ISNULL((
+                SELECT SUM(ISNULL(u_recurring_amount, 0))
+                FROM dbo.sku_msaz003r sk
+                WHERE sk.account_id = a.account_id
+            ), 0)
+AS total_recurring
         FROM dbo.accounts a
         LEFT JOIN dbo.subscriptions s ON a.account_id = s.account_id
       `;
