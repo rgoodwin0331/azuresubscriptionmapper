@@ -939,6 +939,8 @@
       let currentPage = 1;
       let totalPages = 1;
       let searchTimer = null;
+      let sortKey = null;
+      let sortDir = 'asc';
 
       // Typeahead state
       let acctTimer = null;
@@ -959,6 +961,8 @@
             tab.classList.add('active');
             currentTab = tab.dataset.tab;
             currentPage = 1;
+            sortKey = null;
+            sortDir = 'asc';
             document.getElementById('search-input').value = '';
             loadData();
           });
@@ -1060,12 +1064,42 @@
         else renderUnknown(data);
       }
 
+      function sortAccounts(key) {
+        if (sortKey === key) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortKey = key;
+          sortDir = 'asc';
+        }
+        // Re-render the currently held data (last fetched page)
+        if (window._lastAccountsData) renderAccounts(window._lastAccountsData);
+      }
+
       function renderAccounts(data) {
+        window._lastAccountsData = data;
         const fmtCurr = (v) => {
           const n = parseFloat(v) || 0;
           return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
         };
-        const rows = data.map(a => `
+        // Apply client-side sort if a sort key is active
+        let sorted = data.slice();
+        if (sortKey) {
+          sorted.sort((a, b) => {
+            let av = a[sortKey];
+            let bv = b[sortKey];
+            if (sortKey === 'total_recurring') { av = parseFloat(av) || 0; bv = parseFloat(bv) || 0; }
+            else if (sortKey === 'subscription_count') { av = parseInt(av) || 0; bv = parseInt(bv) || 0; }
+            else { av = String(av ?? '').toLowerCase(); bv = String(bv ?? '').toLowerCase(); }
+            if (av < bv) return sortDir === 'asc' ? -1 : 1;
+            if (av > bv) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+          });
+        }
+        const arrow = (key) => {
+          if (sortKey !== key) return ' <span style="color:#cbd5e1;">⇅</span>';
+          return sortDir === 'asc' ? ' <span style="color:#1e40af;">↑</span>' : ' <span style="color:#1e40af;">↓</span>';
+        };
+        const rows = sorted.map(a => `
     <tr style="cursor:pointer;" onclick="openDetail(${a.account_id})">
       <td>${esc(a.account_name ?? '')}</td>
       <td>${esc(String(a.company_id ?? ''))}</td>
@@ -1075,7 +1109,13 @@
     </tr>`).join('');
         document.getElementById('table-container').innerHTML = `
     <table>
-      <thead><tr><th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th>Monthly Recurring</th><th>Account ID</th></tr></thead>
+      <thead><tr>
+        <th style="cursor:pointer;user-select:none;" onclick="sortAccounts('account_name')">Account Name${arrow('account_name')}</th>
+        <th>Company ID</th>
+        <th style="cursor:pointer;user-select:none;" onclick="sortAccounts('subscription_count')">Subscriptions${arrow('subscription_count')}</th>
+        <th style="cursor:pointer;user-select:none;" onclick="sortAccounts('total_recurring')">Monthly Recurring${arrow('total_recurring')}</th>
+        <th>Account ID</th>
+      </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
       }
