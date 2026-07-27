@@ -766,6 +766,7 @@
         <button class="tab active" data-tab="accounts">Accounts</button>
         <button class="tab" data-tab="subscriptions">Subscriptions</button>
         <button class="tab" data-tab="unknown">Unknown</button>
+        <button class="tab" data-tab="entitlements">Entitlements</button>
       </div>
 
       <!-- List view -->
@@ -1029,6 +1030,7 @@
       function tabToEndpoint(tab) {
         if (tab === 'accounts') return 'accounts';
         if (tab === 'subscriptions') return 'subscriptions';
+        if (tab === 'entitlements') return 'entitlements';
         return 'unknown-subscriptions'; // tab === 'unknown'
       }
 
@@ -1067,6 +1069,7 @@
         }
         if (currentTab === 'accounts') renderAccounts(data);
         else if (currentTab === 'subscriptions') renderSubscriptions(data);
+        else if (currentTab === 'entitlements') renderEntitlements(data);
         else renderUnknown(data);
       }
 
@@ -1172,6 +1175,38 @@ function renderAccounts(data) {
     <table>
       <thead><tr><th>Subscription Name</th><th>Subscription GUID</th><th class="sortable" onclick="toggleAcctSort('name')">Account Name <span class="sort-ind">${acctSortIndicator('name')}</span></th><th>Company ID</th></tr></thead>
       <tbody>${rows}</tbody>
+    </table>`;
+      }
+
+      function renderEntitlements(data) {
+        const fmtCurr = (v) => {
+          const n = parseFloat(v) || 0;
+          return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        const fmtNum = (v) => (parseInt(v, 10) || 0).toLocaleString('en-US');
+        const rows = data.map(e => `
+    <tr>
+      <td>${esc(e.service_offering ?? '')}</td>
+      <td><span class="source-badge ${(e.product_id ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')}">${esc(e.product_id ?? '')}</span></td>
+      <td style="text-align:right;">${fmtNum(e.total_quantity)}</td>
+      <td style="text-align:right;">${fmtCurr(e.total_recurring)}</td>
+    </tr>`).join('');
+        const totalQty = data.reduce((s, e) => s + (parseInt(e.total_quantity, 10) || 0), 0);
+        const totalRec = data.reduce((s, e) => s + (parseFloat(e.total_recurring) || 0), 0);
+        document.getElementById('table-container').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Service Offering</th>
+        <th>Product ID</th>
+        <th style="text-align:right;">Total Quantity</th>
+        <th style="text-align:right;">Total Recurring</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="font-weight:600;background:#f1f5f9;">
+        <td colspan="2">TOTAL</td>
+        <td style="text-align:right;">${fmtNum(totalQty)}</td>
+        <td style="text-align:right;">${fmtCurr(totalRec)}</td>
+      </tr></tfoot>
     </table>`;
       }
 

@@ -204,6 +204,56 @@ AS total_recurring
 });
 
 // ─────────────────────────────────────────────────────────────
+// GET /api/entitlements
+// Aggregates all 6 SKU tables by service offering + product id,
+// returning sum of quantity and sum of recurring amount.
+// ─────────────────────────────────────────────────────────────
+app.http('entitlements', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: async (request, context) => {
+    try {
+      const pool = await getPool();
+      const result = await pool.request().query(`
+        SELECT
+          u_service_offering AS service_offering,
+          u_product_id       AS product_id,
+          SUM(CAST(u_qty_to_invoice AS INT))          AS total_quantity,
+          SUM(CAST(u_recurring_amount AS DECIMAL(18,2))) AS total_recurring
+        FROM (
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz001
+          UNION ALL
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz001vdc
+          UNION ALL
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz002
+          UNION ALL
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz002lx
+          UNION ALL
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz003
+          UNION ALL
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz003r
+        ) combined
+        GROUP BY u_service_offering, u_product_id
+        ORDER BY u_service_offering, u_product_id
+      `);
+
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: result.recordset, total: result.recordset.length })
+      };
+    } catch (error) {
+      context.error('Entitlements error:', error);
+      return {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: error.message })
+      };
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /api/accounts/{accountId}   — account detail
 // FIX: column is [name] not account_name — aliased as account_name
 // ─────────────────────────────────────────────────────────────
