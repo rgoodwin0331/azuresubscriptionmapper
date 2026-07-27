@@ -258,10 +258,6 @@ app.http('account-detail', {
           SELECT id, 'MSAZ002' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
           FROM dbo.sku_msaz002
           WHERE account_id = @accountId
-          UNION ALL
-          SELECT id, 'MSAZ002LX' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
-          FROM dbo.sku_msaz002lx
-          WHERE account_id = @accountId
           ORDER BY u_service_offering, u_product_id
         `);
 
