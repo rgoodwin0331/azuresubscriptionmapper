@@ -679,26 +679,6 @@
       background: #f9fafb;
       font-weight: bold;
     }
-
-    /* Source badges for SKU table */
-    .source-badge {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 0.15rem 0.5rem;
-      border-radius: 4px;
-      white-space: nowrap;
-    }
-
-    .source-msaz {
-      background: #dbeafe;
-      color: #1e40af;
-    }
-
-    .source-vdc {
-      background: #fef3c7;
-      color: #92400e;
-    }
   </style>
 </head>
 
@@ -1044,16 +1024,21 @@
       }
 
       function renderAccounts(data) {
+        const fmtCurr = (v) => {
+          const n = parseFloat(v) || 0;
+          return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
         const rows = data.map(a => `
     <tr style="cursor:pointer;" onclick="openDetail(${a.account_id})">
       <td>${esc(a.account_name ?? '')}</td>
       <td>${esc(String(a.company_id ?? ''))}</td>
       <td><span style="display:inline-block;padding:.2rem .6rem;border-radius:12px;font-size:.78rem;font-weight:500;background:#dbeafe;color:#1e40af;">${a.subscription_count ?? 0}</span></td>
+      <td style="font-family:monospace;font-size:.85rem;color:#065f46;font-weight:600;">${fmtCurr(a.total_recurring)}</td>
       <td>${esc(String(a.account_id ?? ''))}</td>
     </tr>`).join('');
         document.getElementById('table-container').innerHTML = `
     <table>
-      <thead><tr><th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th>Account ID</th></tr></thead>
+      <thead><tr><th>Account Name</th><th>Company ID</th><th>Subscriptions</th><th>Monthly Recurring</th><th>Account ID</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
       }
@@ -1187,7 +1172,6 @@
           skus.forEach(k => {
             skusBody.insertAdjacentHTML('beforeend', `
             <tr>
-              <td><span class="source-badge ${k.source_table === 'MSAZ001VDC' ? 'source-vdc' : 'source-msaz'}">${fmt(k.source_table)}</span></td>
               <td>${fmt(k.u_service_offering)}</td>
               <td>${fmt(k.u_product_id)}</td>
               <td style="text-align:center">${fmt(k.u_qty_to_invoice)}</td>
