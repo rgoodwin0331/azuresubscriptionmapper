@@ -655,10 +655,18 @@
       color: #9a3412;
       border: 1px solid #fdba74;
     }
+    .source-badge.msaz003r {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .source-badge.msaz005 {
+      background: #e0e7ff;
+      color: #3730a3;
+      border: 1px solid #a5b4fc;
+    }
 
-    
-.source-badge.msaz003r { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; } /* red */
-.section-header {
+    .section-header {
       border-bottom: 2px solid #e5e7eb;
       margin: 1.5rem 0 1rem;
       padding-bottom: 0.5rem;
@@ -717,11 +725,7 @@
       background: #f9fafb;
       font-weight: bold;
     }
-  
-.sortable { cursor: pointer; user-select: none; }
-.sortable:hover { background: #eff6ff; }
-.sort-ind { opacity: .7; margin-left: 6px; font-size: .9em; }
-</style>
+  </style>
 </head>
 
 <body>
@@ -945,9 +949,8 @@
       let currentTab = 'accounts';
       let currentPage = 1;
       let totalPages = 1;
+      let currentData = [];
       let searchTimer = null;
-      let sortKey = null;
-      let sortDir = 'asc';
 
       // Typeahead state
       let acctTimer = null;
@@ -968,8 +971,6 @@
             tab.classList.add('active');
             currentTab = tab.dataset.tab;
             currentPage = 1;
-            sortKey = null;
-            sortDir = 'asc';
             document.getElementById('search-input').value = '';
             loadData();
           });
@@ -1047,6 +1048,7 @@
           totalPages = d.totalPages || 1;
           const total = d.total || 0;
 
+          currentData = data;
           renderTable(data);
           updatePagination(total, d.page || currentPage, totalPages);
         } catch (e) {
@@ -1069,80 +1071,26 @@
         }
         if (currentTab === 'accounts') renderAccounts(data);
         else if (currentTab === 'subscriptions') renderSubscriptions(data);
-        else if (currentTab === 'entitlements') renderEntitlements(data);
         else renderUnknown(data);
       }
 
-      function sortAccounts(key) {
-        if (sortKey === key) {
-          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-        } else {
-          sortKey = key;
-          sortDir = 'asc';
-        }
-        // Re-render the currently held data (last fetched page)
-        if (window._lastAccountsData) renderAccounts(window._lastAccountsData);
-      }
-
-      
-// ---- Accounts table sorting (client-side, current page) ----
-let acctSortKey = null; // 'name' | 'subscriptions' | 'total_recurring'
-let acctSortDir = 'asc';
-
-function toggleAcctSort(key) {
-  if (acctSortKey === key) {
-    acctSortDir = (acctSortDir === 'asc') ? 'desc' : 'asc';
-  } else {
-    acctSortKey = key;
-    acctSortDir = (key === 'name') ? 'asc' : 'desc';
-  }
-  renderAccounts();
-}
-
-function acctSortIndicator(key) {
-  if (acctSortKey !== key) return '⇅';
-  return acctSortDir === 'asc' ? '↑' : '↓';
-}
-
-function applyAcctSort(rows) {
-  if (!acctSortKey) return rows;
-  const dir = acctSortDir === 'asc' ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    const av = a?.[acctSortKey];
-    const bv = b?.[acctSortKey];
-    if (acctSortKey === 'name') {
-      return dir * String(av ?? '').localeCompare(String(bv ?? ''), undefined, { sensitivity: 'base' });
-    }
-    const an = Number(av ?? 0);
-    const bn = Number(bv ?? 0);
-    return dir * (an - bn);
-  });
-}
-function renderAccounts(data) {
-        window._lastAccountsData = data;
+      let sortKey = null, sortDir = 1;
+      function renderAccounts(data) {
         const fmtCurr = (v) => {
           const n = parseFloat(v) || 0;
           return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
         };
-        // Apply client-side sort if a sort key is active
-        let sorted = data.slice();
         if (sortKey) {
-          sorted.sort((a, b) => {
-            let av = a[sortKey];
-            let bv = b[sortKey];
-            if (sortKey === 'total_recurring') { av = parseFloat(av) || 0; bv = parseFloat(bv) || 0; }
-            else if (sortKey === 'subscription_count') { av = parseInt(av) || 0; bv = parseInt(bv) || 0; }
-            else { av = String(av ?? '').toLowerCase(); bv = String(bv ?? '').toLowerCase(); }
-            if (av < bv) return sortDir === 'asc' ? -1 : 1;
-            if (av > bv) return sortDir === 'asc' ? 1 : -1;
-            return 0;
+          data = [...data].sort((a, b) => {
+            let va = a[sortKey], vb = b[sortKey];
+            if (sortKey === 'account_name') { va = va ?? ''; vb = vb ?? ''; return va.localeCompare(vb) * sortDir; }
+            if (sortKey === 'subscription_count') { va = a.subscription_count ?? 0; vb = b.subscription_count ?? 0; }
+            if (sortKey === 'total_recurring') { va = parseFloat(a.total_recurring) ?? 0; vb = parseFloat(b.total_recurring) ?? 0; }
+            return ((va ?? 0) - (vb ?? 0)) * sortDir;
           });
         }
-        const arrow = (key) => {
-          if (sortKey !== key) return ' <span style="color:#cbd5e1;">⇅</span>';
-          return sortDir === 'asc' ? ' <span style="color:#1e40af;">↑</span>' : ' <span style="color:#1e40af;">↓</span>';
-        };
-        const rows = sorted.map(a => `
+        const arrow = (k) => sortKey === k ? (sortDir > 0 ? ' ↑' : ' ↓') : ' ⇅';
+        const rows = data.map(a => `
     <tr style="cursor:pointer;" onclick="openDetail(${a.account_id})">
       <td>${esc(a.account_name ?? '')}</td>
       <td>${esc(String(a.company_id ?? ''))}</td>
@@ -1153,14 +1101,18 @@ function renderAccounts(data) {
         document.getElementById('table-container').innerHTML = `
     <table>
       <thead><tr>
-        <th style="cursor:pointer;user-select:none;" onclick="sortAccounts('account_name')">Account Name${arrow('account_name')}</th>
+        <th style="cursor:pointer;user-select:none;" onclick="sortBy('account_name')">Account Name${arrow('account_name')}</th>
         <th>Company ID</th>
-        <th style="cursor:pointer;user-select:none;" onclick="sortAccounts('subscription_count')">Subscriptions${arrow('subscription_count')}</th>
-        <th style="cursor:pointer;user-select:none;" onclick="sortAccounts('total_recurring')">Monthly Recurring${arrow('total_recurring')}</th>
+        <th style="cursor:pointer;user-select:none;" onclick="sortBy('subscription_count')">Subscriptions${arrow('subscription_count')}</th>
+        <th style="cursor:pointer;user-select:none;" onclick="sortBy('total_recurring')">Monthly Recurring${arrow('total_recurring')}</th>
         <th>Account ID</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+      }
+      function sortBy(key) {
+        if (sortKey === key) { sortDir *= -1; } else { sortKey = key; sortDir = 1; }
+        renderTable(currentData);
       }
 
       function renderSubscriptions(data) {
@@ -1173,40 +1125,8 @@ function renderAccounts(data) {
     </tr>`).join('');
         document.getElementById('table-container').innerHTML = `
     <table>
-      <thead><tr><th>Subscription Name</th><th>Subscription GUID</th><th class="sortable" onclick="toggleAcctSort('name')">Account Name <span class="sort-ind">${acctSortIndicator('name')}</span></th><th>Company ID</th></tr></thead>
+      <thead><tr><th>Subscription Name</th><th>Subscription GUID</th><th>Account Name</th><th>Company ID</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
-      }
-
-      function renderEntitlements(data) {
-        const fmtCurr = (v) => {
-          const n = parseFloat(v) || 0;
-          return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        };
-        const fmtNum = (v) => (parseInt(v, 10) || 0).toLocaleString('en-US');
-        const rows = data.map(e => `
-    <tr>
-      <td>${esc(e.service_offering ?? '')}</td>
-      <td><span class="source-badge ${(e.product_id ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')}">${esc(e.product_id ?? '')}</span></td>
-      <td style="text-align:right;">${fmtNum(e.total_quantity)}</td>
-      <td style="text-align:right;">${fmtCurr(e.total_recurring)}</td>
-    </tr>`).join('');
-        const totalQty = data.reduce((s, e) => s + (parseInt(e.total_quantity, 10) || 0), 0);
-        const totalRec = data.reduce((s, e) => s + (parseFloat(e.total_recurring) || 0), 0);
-        document.getElementById('table-container').innerHTML = `
-    <table>
-      <thead><tr>
-        <th>Service Offering</th>
-        <th>Product ID</th>
-        <th style="text-align:right;">Total Quantity</th>
-        <th style="text-align:right;">Total Recurring</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-      <tfoot><tr style="font-weight:600;background:#f1f5f9;">
-        <td colspan="2">TOTAL</td>
-        <td style="text-align:right;">${fmtNum(totalQty)}</td>
-        <td style="text-align:right;">${fmtCurr(totalRec)}</td>
-      </tr></tfoot>
     </table>`;
       }
 
@@ -1221,6 +1141,42 @@ function renderAccounts(data) {
     <table>
       <thead><tr><th>ID</th><th>Subscription Name</th><th>Subscription GUID</th></tr></thead>
       <tbody>${rows}</tbody>
+    </table>`;
+      }
+
+      function renderEntitlements(data) {
+        const fmtCurr = (v) => {
+          const n = parseFloat(v) || 0;
+          return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        const fmtNum = (v) => (parseInt(v) || 0).toLocaleString('en-US');
+        const badgeClass = (pid) => 'source-badge ' + (pid || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        let totalQty = 0, totalRec = 0;
+        const rows = data.map(e => {
+          totalQty += parseInt(e.total_quantity) || 0;
+          totalRec += parseFloat(e.total_recurring) || 0;
+          return `
+    <tr>
+      <td>${esc(e.service_offering ?? '')}</td>
+      <td><span class="${badgeClass(e.product_id)}">${esc(e.product_id ?? '')}</span></td>
+      <td style="text-align:right;font-family:monospace;">${fmtNum(e.total_quantity)}</td>
+      <td style="text-align:right;font-family:monospace;color:#065f46;font-weight:600;">${fmtCurr(e.total_recurring)}</td>
+    </tr>`;
+        }).join('');
+        document.getElementById('table-container').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Service Offering</th>
+        <th>Product ID</th>
+        <th style="text-align:right;">Total Quantity</th>
+        <th style="text-align:right;">Total Recurring</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="font-weight:700;background:#f0f9ff;border-top:2px solid #0ea5e9;">
+        <td colspan="2" style="text-align:right;">Grand Totals:</td>
+        <td style="text-align:right;font-family:monospace;">${fmtNum(totalQty)}</td>
+        <td style="text-align:right;font-family:monospace;color:#065f46;">${fmtCurr(totalRec)}</td>
+      </tr></tfoot>
     </table>`;
       }
 

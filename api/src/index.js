@@ -151,13 +151,19 @@ app.http('accounts', {
             FROM dbo.sku_msaz003 sk
             WHERE sk.account_id = a.account_id
           ), 0)
-          
-            + ISNULL((
-                SELECT SUM(ISNULL(u_recurring_amount, 0))
-                FROM dbo.sku_msaz003r sk
-                WHERE sk.account_id = a.account_id
-            ), 0)
-AS total_recurring
+          +
+          ISNULL((
+            SELECT SUM(ISNULL(u_recurring_amount, 0))
+            FROM dbo.sku_msaz003r sk
+            WHERE sk.account_id = a.account_id
+          ), 0)
+          +
+          ISNULL((
+            SELECT SUM(ISNULL(u_recurring_amount, 0))
+            FROM dbo.sku_msaz005 sk
+            WHERE sk.account_id = a.account_id
+          ), 0)
+          AS total_recurring
         FROM dbo.accounts a
         LEFT JOIN dbo.subscriptions s ON a.account_id = s.account_id
       `;
@@ -203,23 +209,23 @@ AS total_recurring
   }
 });
 
+
 // ─────────────────────────────────────────────────────────────
-// GET /api/entitlements
-// Aggregates all 6 SKU tables by service offering + product id,
-// returning sum of quantity and sum of recurring amount.
+// GET /api/entitlements   — aggregated SKU entitlements
 // ─────────────────────────────────────────────────────────────
 app.http('entitlements', {
   methods: ['GET'],
   authLevel: 'anonymous',
+  route: 'entitlements',
   handler: async (request, context) => {
     try {
       const pool = await getPool();
       const result = await pool.request().query(`
         SELECT
           u_service_offering AS service_offering,
-          u_product_id       AS product_id,
-          SUM(CAST(u_qty_to_invoice AS INT))          AS total_quantity,
-          SUM(CAST(u_recurring_amount AS DECIMAL(18,2))) AS total_recurring
+          u_product_id AS product_id,
+          SUM(ISNULL(u_qty_to_invoice, 0)) AS total_quantity,
+          SUM(ISNULL(u_recurring_amount, 0)) AS total_recurring
         FROM (
           SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz001
           UNION ALL
@@ -232,15 +238,16 @@ app.http('entitlements', {
           SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz003
           UNION ALL
           SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz003r
-        ) combined
+          UNION ALL
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz005
+        ) AS all_skus
         GROUP BY u_service_offering, u_product_id
         ORDER BY u_service_offering, u_product_id
       `);
-
       return {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: result.recordset, total: result.recordset.length })
+        body: JSON.stringify({ data: result.recordset })
       };
     } catch (error) {
       context.error('Entitlements error:', error);
@@ -331,6 +338,10 @@ app.http('account-detail', {
           UNION ALL
           SELECT id, 'MSAZ003R' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
           FROM dbo.sku_msaz003r
+          WHERE account_id = @accountId
+          UNION ALL
+          SELECT id, 'MSAZ005' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
+          FROM dbo.sku_msaz005
           WHERE account_id = @accountId
           ORDER BY u_service_offering, u_product_id
         `);
