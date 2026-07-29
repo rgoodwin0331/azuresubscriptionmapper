@@ -163,6 +163,12 @@ app.http('accounts', {
             FROM dbo.sku_msaz005 sk
             WHERE sk.account_id = a.account_id
           ), 0)
+          +
+          ISNULL((
+            SELECT SUM(ISNULL(u_recurring_amount, 0))
+            FROM dbo.sku_msazri sk
+            WHERE sk.account_id = a.account_id
+          ), 0)
           AS total_recurring
         FROM dbo.accounts a
         LEFT JOIN dbo.subscriptions s ON a.account_id = s.account_id
@@ -240,6 +246,8 @@ app.http('entitlements', {
           SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz003r
           UNION ALL
           SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msaz005
+          UNION ALL
+          SELECT u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount FROM dbo.sku_msazri
         ) AS all_skus
         GROUP BY u_service_offering, u_product_id
         ORDER BY u_service_offering, u_product_id
@@ -342,6 +350,10 @@ app.http('account-detail', {
           UNION ALL
           SELECT id, 'MSAZ005' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
           FROM dbo.sku_msaz005
+          WHERE account_id = @accountId
+          UNION ALL
+          SELECT id, 'MSAZRI' AS source_table, u_service_offering, u_product_id, u_qty_to_invoice, u_recurring_amount
+          FROM dbo.sku_msazri
           WHERE account_id = @accountId
           ORDER BY u_service_offering, u_product_id
         `);
